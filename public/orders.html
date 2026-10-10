@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartNutri Eats - Đơn Hàng Của Tôi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { theme: { extend: { colors: { food: { 50: '#fff7ed', 100: '#ffedd5', 500: '#f97316', 600: '#ea580c', 700: '#c2410c' } } } } }
+    </script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen">
+
+    <header class="bg-white sticky top-0 z-40 border-b border-slate-200 shadow-sm">
+        <div class="max-w-3xl mx-auto px-4 h-16 flex items-center justify-between">
+            <a href="/" class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-food-600 flex items-center justify-center text-white shadow-md shadow-food-500/20">🍔</div>
+                <span class="text-xl font-black text-slate-900">SmartNutri <span class="text-food-600">Eats</span></span>
+            </a>
+            <div id="account-bar" class="flex items-center gap-2 text-xs font-bold"></div>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto px-4 py-8">
+
+        <!-- Đăng nhập / Đăng ký -->
+        <section id="auth-section" class="hidden max-w-md mx-auto">
+            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200">
+                <div class="text-center mb-5">
+                    <h1 class="text-xl font-black text-slate-900">Theo dõi đơn hàng</h1>
+                    <p class="text-xs text-slate-500 mt-1">Đăng nhập để xem tiến độ các đơn bạn đã đặt.</p>
+                </div>
+                <div class="flex bg-slate-100 p-1 rounded-xl mb-4 text-xs font-bold">
+                    <button id="tab-login" onclick="setMode('login')" class="flex-1 py-2 rounded-lg">Đăng nhập</button>
+                    <button id="tab-register" onclick="setMode('register')" class="flex-1 py-2 rounded-lg">Đăng ký</button>
+                </div>
+                <form onsubmit="submitAuth(event)" class="space-y-3">
+                    <input id="f-name" type="text" placeholder="Họ và tên" maxlength="100" class="hidden w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                    <input id="f-phone" type="tel" placeholder="Số điện thoại" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                    <input id="f-pass" type="password" placeholder="Mật khẩu (tối thiểu 6 ký tự)" required minlength="6" maxlength="72" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                    <p id="auth-err" class="text-xs text-rose-600 font-bold min-h-[1rem]"></p>
+                    <button type="submit" id="auth-submit" class="w-full py-3 bg-food-600 hover:bg-food-700 text-white font-black rounded-xl text-sm transition">Đăng nhập</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- Danh sách đơn -->
+        <section id="orders-section" class="hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h1 class="text-xl font-black text-slate-900">📦 Đơn Hàng Của Tôi</h1>
+                <span id="orders-status" class="text-[11px] font-bold text-slate-400"></span>
+            </div>
+            <div id="orders-list" class="space-y-4"></div>
+        </section>
+    </main>
+
+    <script>
+        const TOKEN_KEY = 'smartnutri_token';
+        const POLL_MS = 8000;
+        let tokenMem = '';
+        let token = '';
+        let customer = null;
+        let mode = 'login';
+        let timer = null;
+
+        function esc(v) {
+            return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function readToken() { try { return localStorage.getItem(TOKEN_KEY) || tokenMem; } catch (e) { return tokenMem; } }
+        function saveToken(t) {
+            tokenMem = t; token = t;
+            try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+        }
+        const fmt = d => d ? new Date(d).toLocaleString('vi-VN') : '';
+
+        function setMode(m) {
+            mode = m;
+            const reg = m === 'register';
+            document.getElementById('f-name').classList.toggle('hidden', !reg);
+            document.getElementById('f-name').required = reg;
+            document.getElementById('auth-submit').textContent = reg ? 'Tạo tài khoản' : 'Đăng nhập';
+            document.getElementById('auth-err').textContent = '';
+            document.getElementById('tab-login').className = 'flex-1 py-2 rounded-lg ' + (!reg ? 'bg-white shadow text-food-600' : 'text-slate-500');
+            document.getElementById('tab-register').className = 'flex-1 py-2 rounded-lg ' + (reg ? 'bg-white shadow text-food-600' : 'text-slate-500');
+        }
+
+        async function submitAuth(e) {
+            e.preventDefault();
+            const errEl = document.getElementById('auth-err');
+            errEl.textContent = '';
+            const body = { phone: document.getElementById('f-phone').value, password: document.getElementById('f-pass').value };
+            if (mode === 'register') body.name = document.getElementById('f-name').value;
+            try {
+                const res = await fetch('/api/auth/' + mode, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || 'Có lỗi xảy ra.');
+                saveToken(data.token);
+                customer = data.customer;
+                document.getElementById('f-pass').value = '';
+                showOrders();
+            } catch (err) {
+                errEl.textContent = err.message;
+            }
+        }
+
+        async function logout() {
+            try { await fetch('/api/auth/logout', { method: 'POST', headers: { Authorization: 'Bearer ' + token } }); } catch (e) {}
+            saveToken('');
+            customer = null;
+            clearInterval(timer);
+            showAuth();
+        }
+
+        function showAuth() {
+            document.getElementById('orders-section').classList.add('hidden');
+            document.getElementById('auth-section').classList.remove('hidden');
+            document.getElementById('account-bar').innerHTML = '<a href="/" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700">← Đặt món</a>';
+            setMode('login');
+        }
+
+        function showOrders() {
+            document.getElementById('auth-section').classList.add('hidden');
+            document.getElementById('orders-section').classList.remove('hidden');
+            document.getElementById('account-bar').innerHTML = `
+                <span class="text-slate-500 hidden sm:inline">👤 <span id="who"></span></span>
+                <a href="/" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl text-slate-700">← Đặt món</a>
+                <button onclick="logout()" class="px-3 py-2 bg-slate-900 hover:bg-black rounded-xl text-white">Đăng xuất</button>`;
+            document.getElementById('who').textContent = customer ? customer.full_name : '';
+            loadOrders();
+            clearInterval(timer);
+            timer = setInterval(loadOrders, POLL_MS);
+        }
+
+        function stepper(o) {
+            const s = o.status;
+            const steps = [
+                { label: 'Đã nhận đơn', time: o.created_at, done: true },
+                { label: 'Đang chuẩn bị', time: o.preparing_at, done: s === 'preparing' || s === 'completed' },
+                { label: 'Hoàn thành', time: o.completed_at, done: s === 'completed' }
+            ];
+            const activeIdx = s === 'completed' ? 2 : s === 'preparing' ? 1 : 0;
+            return `<div class="grid grid-cols-3 gap-2">` + steps.map((st, i) => `
+                <div class="text-center">
+                    <div class="mx-auto w-9 h-9 rounded-full flex items-center justify-center text-sm font-black
+                        ${st.done ? 'bg-emerald-500 text-white' : 'bg-slate-200 text-slate-400'}
+                        ${i === activeIdx && s !== 'completed' ? 'ring-4 ring-food-500/30' : ''}">${st.done ? '✓' : i + 1}</div>
+                    <p class="text-[11px] font-extrabold mt-1.5 ${st.done ? 'text-slate-900' : 'text-slate-400'}">${st.label}</p>
+                    <p class="text-[10px] text-slate-400 min-h-[0.75rem]">${st.done && st.time ? esc(fmt(st.time)) : ''}</p>
+                </div>`).join('') + `</div>`;
+        }
+
+        const STATUS_TEXT = {
+            pending: ['⏳ Đã nhận đơn - chờ xác nhận', 'bg-amber-100 text-amber-700'],
+            preparing: ['👨‍🍳 Đang chuẩn bị món', 'bg-blue-100 text-blue-700'],
+            completed: ['✅ Đã hoàn thành', 'bg-emerald-100 text-emerald-700']
+        };
+
+        function renderOrders(orders) {
+            const list = document.getElementById('orders-list');
+            if (!orders.length) {
+                list.innerHTML = `
+                    <div class="text-center py-16 border-2 border-dashed border-slate-200 rounded-3xl text-slate-400">
+                        <p class="text-sm font-bold">Bạn chưa có đơn hàng nào.</p>
+                        <a href="/" class="inline-block mt-3 px-4 py-2 bg-food-600 text-white text-xs font-bold rounded-xl">Đặt món ngay</a>
+                    </div>`;
+                return;
+            }
+            list.innerHTML = orders.map(o => {
+                const [txt, cls] = STATUS_TEXT[o.status] || STATUS_TEXT.pending;
+                const items = Array.isArray(o.items) ? o.items : [];
+                return `
+                    <div class="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                            <div>
+                                <span class="text-sm font-black text-slate-900">Đơn #${esc(o.id)}</span>
+                                <span class="text-[11px] text-slate-400 ml-2">${esc(fmt(o.created_at))}</span>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-[11px] font-extrabold ${cls}">${txt}</span>
+                        </div>
+                        ${stepper(o)}
+                        <div class="mt-4 pt-4 border-t border-slate-100 space-y-1.5">
+                            ${items.map(i => `
+                                <div class="flex justify-between text-xs">
+                                    <span class="font-bold text-slate-700">${esc(i.name)} <span class="text-slate-400">x${esc(i.qty)}</span></span>
+                                    <span class="font-bold text-food-600">${Number(i.cals * i.qty).toLocaleString()} kcal</span>
+                                </div>`).join('')}
+                            <div class="flex justify-between text-xs pt-2 border-t border-dashed border-slate-200 font-extrabold">
+                                <span>Tổng calo</span>
+                                <span class="text-food-600">${Number(o.total_calories).toLocaleString()} kcal</span>
+                            </div>
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        async function loadOrders() {
+            const st = document.getElementById('orders-status');
+            try {
+                const res = await fetch('/api/my-orders', { headers: { Authorization: 'Bearer ' + token } });
+                if (res.status === 401) { saveToken(''); customer = null; clearInterval(timer); return showAuth(); }
+                if (!res.ok) throw new Error('Lỗi máy chủ (' + res.status + ')');
+                renderOrders(await res.json());
+                st.textContent = 'Tự cập nhật mỗi 8 giây';
+            } catch (err) {
+                st.textContent = '⚠️ ' + err.message;
+            }
+        }
+
+        async function init() {
+            token = readToken();
+            if (!token) return showAuth();
+            try {
+                const res = await fetch('/api/me', { headers: { Authorization: 'Bearer ' + token } });
+                if (!res.ok) throw new Error('expired');
+                customer = (await res.json()).customer;
+                showOrders();
+            } catch (e) {
+                saveToken('');
+                showAuth();
+            }
+        }
+        init();
+    </script>
+</body>
+</html>

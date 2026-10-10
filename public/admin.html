@@ -52,6 +52,9 @@
             <span id="order-count-badge" class="px-3 py-1 bg-slate-800 text-xs font-bold rounded-full text-slate-300">0 đơn</span>
         </div>
 
+        <!-- Bộ lọc theo trạng thái -->
+        <div id="filter-tabs" class="flex flex-wrap gap-2 mb-5"></div>
+
         <div id="orders-container" class="space-y-4"></div>
     </div>
 
@@ -62,7 +65,9 @@
         const container = document.getElementById('orders-container');
         const statusEl = document.getElementById('status');
 
-        let knownIds = null;      // null = lần tải đầu tiên (không phát chuông)
+        let allOrders = [];
+        let currentFilter = 'pending';   // 'pending' | 'completed' | 'all'
+        let knownIds = null;             // null = lần tải đầu tiên (không phát chuông)
         let highlightIds = new Set();
         let timer = null;
 
@@ -105,15 +110,20 @@
             showLogin();
         }
 
-        async function api(method) {
+        async function api(method, url = '/api/orders', body) {
             const pw = getPassword();
             if (!pw) throw new Error('NEED_LOGIN');
-            const res = await fetch('/api/orders', { method, headers: { 'x-admin-password': pw } });
+            const headers = { 'x-admin-password': pw };
+            if (body !== undefined) headers['Content-Type'] = 'application/json';
+            const res = await fetch(url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined });
             if (res.status === 401) {
                 setPassword('');
                 throw new Error('Sai mật khẩu quản trị.');
             }
-            if (!res.ok) throw new Error('Lỗi máy chủ (' + res.status + ')');
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.message || ('Lỗi máy chủ (' + res.status + ')'));
+            }
             return res.json();
         }
 
@@ -132,7 +142,8 @@
                     }
                 }
                 knownIds = ids;
-                renderOrders(orders);
+                allOrders = orders;
+                renderOrders();
             } catch (err) {
                 if (err.message === 'NEED_LOGIN') return showLogin();
                 if (err.message.includes('mật khẩu')) return showLogin(err.message);
@@ -141,37 +152,81 @@
             }
         }
 
-        function renderOrders(orders) {
-            document.getElementById('order-count-badge').textContent = `${orders.length} đơn hàng`;
+        function isDone(o) { return o.status === 'completed'; }
+
+        function setFilter(f) {
+            currentFilter = f;
+            renderOrders();
+        }
+
+        function renderTabs() {
+            const pending = allOrders.filter(o => !isDone(o)).length;
+            const done = allOrders.length - pending;
+            const tabs = [
+                ['pending', `⏳ Chờ xử lý (${pending})`],
+                ['completed', `✅ Đã hoàn thiện (${done})`],
+                ['all', `Tất cả (${allOrders.length})`]
+            ];
+            document.getElementById('filter-tabs').innerHTML = tabs.map(([key, label]) => `
+                <button onclick="setFilter('${key}')" class="px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                    currentFilter === key
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-500'
+                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                }">${label}</button>`).join('');
+            document.getElementById('order-count-badge').textContent = `${pending} đơn chờ / ${allOrders.length} tổng`;
+        }
+
+        function renderOrders() {
+            renderTabs();
+
+            const orders = allOrders.filter(o =>
+                currentFilter === 'all' ? true : currentFilter === 'completed' ? isDone(o) : !isDone(o));
 
             if (orders.length === 0) {
+                const msg = allOrders.length === 0
+                    ? ['Chưa có đơn hàng nào.', 'Khi khách nhấn chốt đơn, đơn sẽ tự hiện ở đây.']
+                    : currentFilter === 'pending'
+                        ? ['Không còn đơn nào đang chờ xử lý. 🎉', 'Chuyển sang tab "Đã hoàn thiện" để xem lại.']
+                        : ['Không có đơn nào trong mục này.', ''];
                 container.innerHTML = `
                     <div class="text-center py-16 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500">
-                        <p class="text-sm font-bold">Chưa có đơn hàng nào.</p>
-                        <p class="text-xs mt-1">Khi khách nhấn chốt đơn, đơn sẽ tự hiện ở đây.</p>
+                        <p class="text-sm font-bold">${msg[0]}</p>
+                        <p class="text-xs mt-1">${msg[1]}</p>
                     </div>`;
                 return;
             }
 
             container.innerHTML = orders.map(o => {
-                const isNew = highlightIds.has(o.id);
+                const done = isDone(o);
+                const isNew = !done && highlightIds.has(o.id);
                 const items = Array.isArray(o.items) ? o.items : [];
                 const time = new Date(o.created_at).toLocaleString('vi-VN');
+                const doneTime = o.completed_at ? new Date(o.completed_at).toLocaleString('vi-VN') : '';
+                const border = isNew
+                    ? 'border-2 border-orange-500 new-order-card shadow-2xl shadow-orange-500/20'
+                    : done ? 'border-emerald-500/30 opacity-75' : 'border-slate-800';
                 return `
-                    <div class="bg-slate-900 border ${isNew ? 'border-2 border-orange-500 new-order-card shadow-2xl shadow-orange-500/20' : 'border-slate-800'} rounded-3xl p-6 transition">
+                    <div class="bg-slate-900 border ${border} rounded-3xl p-6 transition">
                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-800 gap-2">
                             <div>
                                 <span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30">
                                     Đơn Hàng #${esc(o.id)}
                                 </span>
+                                ${done
+                                    ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✅ Đã hoàn thiện</span>`
+                                    : o.status === 'preparing'
+                                        ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30">👨‍🍳 Đang chuẩn bị</span>`
+                                        : `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">⏳ Chờ xử lý</span>`}
+                                ${o.customer_id ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-slate-700/50 text-slate-300 border border-slate-600">🔑 Thành viên</span>` : ''}
                                 <h3 class="text-xl font-black text-white mt-2">
-                                    👤 Khách hàng <span class="text-emerald-400 font-black">${esc(o.customer_name)}</span> vừa chốt đơn!
+                                    👤 Khách hàng <span class="text-emerald-400 font-black">${esc(o.customer_name)}</span>${done ? '' : ' vừa chốt đơn!'}
                                 </h3>
                                 <p class="text-xs text-slate-400 mt-0.5">SĐT: ${esc(o.customer_phone)} | Thể trạng: BMI ${esc(o.bmi ?? '--')} (${esc(o.bmi_status || '--')})</p>
                             </div>
                             <div class="text-left sm:text-right">
                                 <span class="text-xs text-slate-400 font-medium block">⏰ Thời Gian Đặt:</span>
                                 <span class="text-xs font-black text-amber-400">${esc(time)}</span>
+                                ${done && doneTime ? `<span class="text-[11px] text-emerald-400 font-bold block mt-1">Hoàn thiện: ${esc(doneTime)}</span>` : ''}
                             </div>
                         </div>
 
@@ -186,12 +241,41 @@
                             </div>
                         </div>
 
-                        <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-bold">
-                            <span class="text-slate-400">Tổng Calo Khay Ăn:</span>
-                            <span class="text-orange-400 font-extrabold text-sm">${Number(o.total_calories).toLocaleString()} kcal / Mục tiêu: ${Number(o.target_calories_kcal || 0).toLocaleString()} kcal</span>
+                        <div class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-xs font-bold">
+                            <div class="flex justify-between sm:block gap-2">
+                                <span class="text-slate-400">Tổng Calo Khay Ăn: </span>
+                                <span class="text-orange-400 font-extrabold text-sm">${Number(o.total_calories).toLocaleString()} kcal / Mục tiêu: ${Number(o.target_calories_kcal || 0).toLocaleString()} kcal</span>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                ${done
+                                    ? `<button onclick="setStatus(${Number(o.id)}, 'pending')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition">↩️ Hoàn tác</button>`
+                                    : o.status === 'preparing'
+                                        ? `<button onclick="setStatus(${Number(o.id)}, 'pending')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition">↩️ Về chờ xử lý</button>
+                                           <button onclick="setStatus(${Number(o.id)}, 'completed')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl transition">✅ Đánh dấu hoàn thiện</button>`
+                                        : `<button onclick="setStatus(${Number(o.id)}, 'preparing')" class="px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-black rounded-xl transition">👨‍🍳 Bắt đầu chuẩn bị</button>
+                                           <button onclick="setStatus(${Number(o.id)}, 'completed')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl transition">✅ Hoàn thiện luôn</button>`}
+                            </div>
                         </div>
                     </div>`;
             }).join('');
+        }
+
+        async function setStatus(id, status) {
+            try {
+                const res = await api('PATCH', '/api/orders/' + id, { status });
+                const o = allOrders.find(x => x.id === id);
+                if (o) {
+                    o.status = res.order.status;
+                    o.preparing_at = res.order.preparing_at;
+                    o.completed_at = res.order.completed_at;
+                }
+                highlightIds.delete(id);
+                renderOrders();
+            } catch (err) {
+                if (err.message === 'NEED_LOGIN' || err.message.includes('mật khẩu')) return showLogin(err.message);
+                statusEl.textContent = '🔴 ' + err.message;
+                statusEl.className = 'text-rose-400 font-bold';
+            }
         }
 
         let confirmClear = false;
@@ -211,7 +295,8 @@
                 knownIds = new Set();
                 loadOrders();
             } catch (err) {
-                alert(err.message);
+                statusEl.textContent = '🔴 ' + err.message;
+                statusEl.className = 'text-rose-400 font-bold';
             }
         }
 

@@ -57,6 +57,8 @@
                     <span id="badge-step-2" class="px-3 py-1 rounded-xl text-slate-400 transition-all">2. Chọn Món Ăn</span>
                 </div>
 
+                <div id="account-area" class="flex items-center gap-2"></div>
+
                 <a href="admin.html" target="_blank" class="px-3.5 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
                     <i data-lucide="layout-dashboard" class="w-4 h-4 text-food-500"></i>
                     <span class="hidden md:inline">Trang Quản Lý</span>
@@ -257,8 +259,131 @@
         </div>
     </div>
 
+    <!-- Modal đăng nhập / đăng ký khách hàng -->
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-extrabold text-slate-900 text-base">Tài khoản khách hàng</h3>
+                <button onclick="closeAuth()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500 text-lg leading-none">✕</button>
+            </div>
+            <div class="flex bg-slate-100 p-1 rounded-xl mb-4 text-xs font-bold">
+                <button id="auth-tab-login" onclick="setAuthMode('login')" class="flex-1 py-2 rounded-lg">Đăng nhập</button>
+                <button id="auth-tab-register" onclick="setAuthMode('register')" class="flex-1 py-2 rounded-lg">Đăng ký</button>
+            </div>
+            <form onsubmit="submitAuth(event)" class="space-y-3">
+                <input id="auth-name" type="text" placeholder="Họ và tên" maxlength="100" class="hidden w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                <input id="auth-phone" type="tel" placeholder="Số điện thoại" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                <input id="auth-password" type="password" placeholder="Mật khẩu (tối thiểu 6 ký tự)" required minlength="6" maxlength="72" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                <p id="auth-error" class="text-xs text-rose-600 font-bold min-h-[1rem]"></p>
+                <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-food-600 hover:bg-food-700 text-white font-black rounded-xl text-sm transition">Đăng nhập</button>
+            </form>
+            <p class="text-[11px] text-slate-400 mt-3 text-center">Đăng nhập để theo dõi tiến độ đơn hàng và tự điền lại chỉ số cơ thể.</p>
+        </div>
+    </div>
+
     <script>
         lucide.createIcons();
+
+        // ---------- Tài khoản khách hàng ----------
+        const TOKEN_KEY = 'smartnutri_token';
+        let tokenMem = '';
+        let authToken = '';
+        let currentCustomer = null;
+        let authMode = 'login';
+
+        function readToken() { try { return localStorage.getItem(TOKEN_KEY) || tokenMem; } catch (e) { return tokenMem; } }
+        function saveToken(t) {
+            tokenMem = t; authToken = t;
+            try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch (e) {}
+        }
+        function authHeaders() { return authToken ? { Authorization: 'Bearer ' + authToken } : {}; }
+
+        function renderAccount() {
+            const box = document.getElementById('account-area');
+            if (currentCustomer) {
+                box.innerHTML = `
+                    <a href="orders.html" class="px-3 py-2 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 rounded-xl text-xs font-bold transition whitespace-nowrap">📦 <span class="hidden sm:inline">Đơn của tôi</span></a>
+                    <button onclick="logoutCustomer()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition whitespace-nowrap" title="Đăng xuất">👤 <span id="acc-name" class="hidden md:inline"></span> ⏻</button>`;
+                document.getElementById('acc-name').textContent = currentCustomer.full_name;
+            } else {
+                box.innerHTML = `<button onclick="openAuth('login')" class="px-3 py-2 bg-food-600 hover:bg-food-700 text-white rounded-xl text-xs font-bold transition whitespace-nowrap">👤 Đăng nhập</button>`;
+            }
+        }
+
+        // Điền sẵn form bước 1 từ tài khoản
+        function applyProfile() {
+            if (!currentCustomer) return;
+            const p = currentCustomer.profile || {};
+            document.getElementById('customer-name').value = currentCustomer.full_name || '';
+            document.getElementById('customer-phone').value = currentCustomer.phone || '';
+            if (p.gender) document.getElementById('gender').value = p.gender;
+            if (p.age) document.getElementById('age').value = p.age;
+            if (p.height) document.getElementById('height').value = p.height;
+            if (p.weight) document.getElementById('weight').value = p.weight;
+        }
+
+        function setAuthMode(m) {
+            authMode = m;
+            const reg = m === 'register';
+            document.getElementById('auth-name').classList.toggle('hidden', !reg);
+            document.getElementById('auth-name').required = reg;
+            document.getElementById('auth-submit-btn').textContent = reg ? 'Tạo tài khoản' : 'Đăng nhập';
+            document.getElementById('auth-error').textContent = '';
+            document.getElementById('auth-tab-login').className = 'flex-1 py-2 rounded-lg ' + (!reg ? 'bg-white shadow text-food-600' : 'text-slate-500');
+            document.getElementById('auth-tab-register').className = 'flex-1 py-2 rounded-lg ' + (reg ? 'bg-white shadow text-food-600' : 'text-slate-500');
+        }
+        function openAuth(m) { setAuthMode(m || 'login'); document.getElementById('auth-modal').classList.remove('hidden'); }
+        function closeAuth() { document.getElementById('auth-modal').classList.add('hidden'); }
+
+        async function submitAuth(e) {
+            e.preventDefault();
+            const errEl = document.getElementById('auth-error');
+            errEl.textContent = '';
+            const body = {
+                phone: document.getElementById('auth-phone').value,
+                password: document.getElementById('auth-password').value
+            };
+            if (authMode === 'register') body.name = document.getElementById('auth-name').value;
+            try {
+                const res = await fetch('/api/auth/' + authMode, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || 'Có lỗi xảy ra.');
+                saveToken(data.token);
+                currentCustomer = data.customer;
+                document.getElementById('auth-password').value = '';
+                renderAccount();
+                applyProfile();
+                closeAuth();
+                showToast(authMode === 'register' ? 'Tạo tài khoản thành công!' : 'Đăng nhập thành công!', 'success');
+            } catch (err) {
+                errEl.textContent = err.message;
+            }
+        }
+
+        async function logoutCustomer() {
+            try { await fetch('/api/auth/logout', { method: 'POST', headers: authHeaders() }); } catch (e) {}
+            saveToken('');
+            currentCustomer = null;
+            renderAccount();
+            showToast('Đã đăng xuất.', 'success');
+        }
+
+        async function initAuth() {
+            authToken = readToken();
+            if (authToken) {
+                try {
+                    const res = await fetch('/api/me', { headers: authHeaders() });
+                    if (res.ok) currentCustomer = (await res.json()).customer;
+                    else saveToken('');
+                } catch (e) {}
+            }
+            renderAccount();
+            applyProfile();
+        }
 
         let userMetrics = {};
         let cart = [];
@@ -470,7 +595,7 @@
             try {
                 const res = await fetch('/api/orders', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
                     body: JSON.stringify(payload)
                 });
                 const data = await res.json().catch(() => ({}));
@@ -479,7 +604,10 @@
                 cart = [];
                 updateCartUI();
                 document.getElementById('cart-modal').classList.add('hidden');
-                alert('🎉 Đã chốt đơn #' + data.id + ' thành công! Cảm ơn bạn ' + userMetrics.name + '.');
+                alert('🎉 Đã chốt đơn #' + data.id + ' thành công! Cảm ơn bạn ' + userMetrics.name + '.' +
+                    (data.linked
+                        ? '\nBạn có thể theo dõi tiến độ tại mục "Đơn của tôi".'
+                        : '\nĐăng nhập hoặc đăng ký tài khoản để theo dõi tiến độ các đơn sau.'));
             } catch (err) {
                 alert('❌ ' + err.message);
             } finally {
@@ -488,6 +616,8 @@
                 label.textContent = 'Chốt Đơn';
             }
         }
+
+        initAuth();
 
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
