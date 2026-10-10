@@ -189,7 +189,16 @@
                     <button id="btn-ai-advice" onclick="getAiAdvice()" class="px-4 py-2.5 bg-slate-900 hover:bg-black disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-xl transition whitespace-nowrap">🤖 Nhận lời khuyên từ AI</button>
                 </div>
                 <div id="ai-advice-result" class="hidden mt-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs leading-relaxed text-slate-700 whitespace-pre-line"></div>
-                <p class="text-[10px] text-slate-400 mt-2">Lời khuyên mang tính tham khảo, không thay thế tư vấn của bác sĩ hoặc chuyên gia dinh dưỡng.</p>
+                <div id="ai-speak-box" class="hidden mt-2 flex flex-wrap items-center gap-2">
+                    <button id="btn-ai-speak" onclick="toggleSpeak()" class="px-3.5 py-2 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 font-extrabold text-xs rounded-xl transition whitespace-nowrap">🔊 Đọc lời khuyên</button>
+                    <select id="speak-voice" onchange="onVoiceChange()" title="Chọn giọng đọc" class="max-w-[16rem] px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-food-500"></select>
+                    <select id="speak-rate" onchange="onVoiceChange()" title="Tốc độ đọc" class="px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-food-500">
+                        <option value="0.8">Chậm</option>
+                        <option value="1" selected>Bình thường</option>
+                        <option value="1.2">Nhanh</option>
+                    </select>
+                </div>
+                <p class="text-[10px] text-slate-400 mt-2">Lời khuyên mang tính tham khảo, không thay thế tư vấn của bác sĩ và bộ y tế.</p>
             </div>
 
             <div id="bmi-advice-box" class="p-4 rounded-2xl bg-orange-50 border border-orange-200 mb-8 text-xs font-semibold text-orange-900 flex items-start gap-3">
@@ -417,6 +426,7 @@
             const badge2 = document.getElementById('badge-step-2');
 
             if (step === 1) {
+                stopSpeak();
                 step1.classList.remove('hidden');
                 step2.classList.add('hidden');
                 cartBar.classList.add('hidden');
@@ -478,6 +488,9 @@
 
             userMetrics = { name, phone, gender, age, height, weight, bmi, bmiStatus, bmr, tdee, targetCalories, proteinGrams, carbGrams, fatGrams, goal };
             document.getElementById('ai-advice-result').classList.add('hidden'); // xóa lời khuyên cũ khi đổi chỉ số
+            lastAdvice = '';
+            stopSpeak();
+            document.getElementById('ai-speak-box').classList.add('hidden');
 
             document.getElementById('res-name-tag').textContent = name;
             document.getElementById('res-bmi').textContent = bmi;
@@ -633,17 +646,173 @@
 
         initAuth();
 
+        // ---------- Đọc to lời khuyên: giọng Gemini (qua server), dự phòng giọng trình duyệt ----------
+        let lastAdvice = '';
+        const canSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
+        const VOICE_KEY = 'smartnutri_voice';
+        const RATE_KEY = 'smartnutri_rate';
+        const GEMINI_VOICES = ['Kore', 'Puck', 'Charon', 'Aoede'];
+
+        let audioEl = null;      // trình phát cho giọng Gemini
+        let speakSeq = 0;        // đổi số này để hủy yêu cầu đang chờ
+        let speakAbort = null;
+        let loadingVoice = false;
+        const audioCache = new Map(); // "giọng|nội dung" -> URL âm thanh, bấm đọc lại không tốn thêm lượt gọi AI
+
+        function loadSetting(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+        function saveSetting(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+        function isSpeaking() {
+            return loadingVoice || (audioEl && !audioEl.paused && !audioEl.ended) || (canSpeak && speechSynthesis.speaking);
+        }
+
+        function setSpeakLabel() {
+            document.getElementById('btn-ai-speak').textContent =
+                loadingVoice ? '⏳ Đang tạo giọng... (bấm để hủy)' : (isSpeaking() ? '⏹ Dừng đọc' : '🔊 Đọc lời khuyên');
+        }
+
+        function stopSpeak() {
+            speakSeq++;
+            loadingVoice = false;
+            if (speakAbort) { speakAbort.abort(); speakAbort = null; }
+            if (audioEl) { audioEl.pause(); audioEl = null; }
+            if (canSpeak) speechSynthesis.cancel();
+            setSpeakLabel();
+        }
+
+        function selectedVoice() { return document.getElementById('speak-voice').value || 'gemini:Kore'; }
+        function selectedRate() { return Number(document.getElementById('speak-rate').value) || 1; }
+
+        function cleanForSpeech(t) {
+            return t.replace(/^\s*[-•*]\s*/gm, '').replace(/\n+/g, '. ').replace(/\s+/g, ' ').trim();
+        }
+
+        function playUrl(url, seq) {
+            if (seq !== speakSeq) return;
+            audioEl = new Audio(url);
+            audioEl.playbackRate = selectedRate();
+            audioEl.onended = audioEl.onerror = () => { audioEl = null; setSpeakLabel(); };
+            audioEl.play().then(setSpeakLabel).catch(() => { audioEl = null; setSpeakLabel(); });
+        }
+
+        function speakWithBrowser(text, voiceURI) {
+            if (!canSpeak) { showToast('Trình duyệt không hỗ trợ đọc văn bản.'); return; }
+            const u = new SpeechSynthesisUtterance(cleanForSpeech(text));
+            u.lang = 'vi-VN';
+            const voice = speechSynthesis.getVoices().find(v => v.voiceURI === voiceURI) ||
+                          speechSynthesis.getVoices().find(v => v.lang.toLowerCase().startsWith('vi'));
+            if (voice) { u.voice = voice; u.lang = voice.lang || 'vi-VN'; }
+            u.rate = selectedRate();
+            u.onend = u.onerror = () => setSpeakLabel();
+            speechSynthesis.speak(u);
+            setSpeakLabel();
+        }
+
+        async function speakWithGemini(text, voiceName) {
+            const key = voiceName + '|' + text;
+            const seq = ++speakSeq;
+            if (audioCache.has(key)) return playUrl(audioCache.get(key), seq);
+
+            loadingVoice = true;
+            setSpeakLabel();
+            speakAbort = new AbortController();
+            const timer = setTimeout(() => speakAbort && speakAbort.abort(), 70000);
+            try {
+                const res = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text, voice: voiceName }),
+                    signal: speakAbort.signal
+                });
+                if (!res.ok) {
+                    const data = await res.json().catch(() => ({}));
+                    throw new Error(data.message || 'Không tạo được giọng đọc.');
+                }
+                const url = URL.createObjectURL(await res.blob());
+                audioCache.set(key, url);
+                loadingVoice = false;
+                playUrl(url, seq);
+            } catch (err) {
+                if (seq !== speakSeq) return; // người dùng đã hủy hoặc đổi ý
+                loadingVoice = false;
+                showToast((err.name === 'AbortError' ? 'Giọng AI phản hồi quá lâu' : err.message) + (canSpeak ? ' - đang dùng giọng trình duyệt.' : ''));
+                if (canSpeak) speakWithBrowser(text, '');
+            } finally {
+                clearTimeout(timer);
+                if (seq === speakSeq) { speakAbort = null; loadingVoice = false; }
+                setSpeakLabel();
+            }
+        }
+
+        function toggleSpeak() {
+            if (!lastAdvice) return;
+            if (isSpeaking()) { stopSpeak(); return; }
+            const v = selectedVoice();
+            if (v.startsWith('gemini:')) speakWithGemini(lastAdvice, v.slice(7));
+            else speakWithBrowser(lastAdvice, v);
+        }
+
+        function loadVoices() {
+            const sel = document.getElementById('speak-voice');
+            const saved = loadSetting(VOICE_KEY) || sel.value || 'gemini:Kore';
+            sel.innerHTML = '';
+
+            const g = document.createElement('optgroup');
+            g.label = 'Giọng Gemini (AI)';
+            GEMINI_VOICES.forEach(n => {
+                const o = document.createElement('option');
+                o.value = 'gemini:' + n;
+                o.textContent = 'Gemini · ' + n;
+                g.appendChild(o);
+            });
+            sel.appendChild(g);
+
+            if (canSpeak) {
+                const vi = speechSynthesis.getVoices().filter(v => v.lang.toLowerCase().startsWith('vi'));
+                if (vi.length) {
+                    const b = document.createElement('optgroup');
+                    b.label = 'Giọng trình duyệt';
+                    vi.forEach(v => {
+                        const o = document.createElement('option');
+                        o.value = v.voiceURI;
+                        o.textContent = v.name + ' (' + v.lang + ')';
+                        b.appendChild(o);
+                    });
+                    sel.appendChild(b);
+                }
+            }
+            if ([...sel.options].some(o => o.value === saved)) sel.value = saved;
+
+            const rate = loadSetting(RATE_KEY);
+            if (rate) document.getElementById('speak-rate').value = rate;
+        }
+
+        function onVoiceChange() {
+            saveSetting(VOICE_KEY, selectedVoice());
+            saveSetting(RATE_KEY, document.getElementById('speak-rate').value);
+            stopSpeak(); // đổi giọng thì dừng, bấm "Đọc lời khuyên" để nghe giọng mới
+        }
+
+        loadVoices();
+        if (canSpeak) speechSynthesis.addEventListener('voiceschanged', loadVoices);
+
+        window.addEventListener('beforeunload', stopSpeak);
+
         // Hỏi Gemini (qua server) lời khuyên dựa trên chỉ số + khay ăn hiện tại
         let aiLoading = false;
         async function getAiAdvice() {
             if (aiLoading || !userMetrics.bmi) return;
             const btn = document.getElementById('btn-ai-advice');
             const out = document.getElementById('ai-advice-result');
+            const speakBox = document.getElementById('ai-speak-box');
             aiLoading = true;
             btn.disabled = true;
             btn.textContent = 'Đang hỏi AI...';
             out.classList.remove('hidden');
             out.textContent = '⏳ AI đang phân tích, vui lòng đợi vài giây...';
+            stopSpeak();
+            speakBox.classList.add('hidden');
+            lastAdvice = '';
 
             // Chỉ gửi các chỉ số cần thiết (không gửi tên, số điện thoại)
             const m = userMetrics;
@@ -666,6 +835,8 @@
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.message || 'Không lấy được lời khuyên.');
                 out.textContent = data.advice;
+                lastAdvice = data.advice;
+                setSpeakLabel(); speakBox.classList.remove('hidden');
             } catch (err) {
                 out.textContent = '⚠️ ' + err.message;
             } finally {
