@@ -366,5 +366,7 @@ app.delete('/api/orders', requireAdmin, wrap(async (req, res) => {
 }));
 
 app.listen(PORT, () => {
-    console.log(`Server đang chạy. Khách: http://localhost:${PORT}  |  Đơn của tôi: http://localhost:${PORT}/orders.html  |  Admin: http://localhost:${PORT}/admin.html`);
+    // Trên Render có biến RENDER_EXTERNAL_URL (https://ten-dich-vu.onrender.com); chạy máy local thì dùng localhost
+    const base = process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`;
+    console.log(`Server đang chạy (cổng ${PORT}). Khách: ${base}  |  Đơn của tôi: ${base}/orders.html  |  Admin: ${base}/admin.html`);
 });
