@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartNutri Admin - Trang Quản Lý Đơn Hàng</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; }
+        @keyframes alertPulse {
+            0%, 100% { border-color: #f97316; }
+            50% { border-color: #ef4444; }
+        }
+        .new-order-card { animation: alertPulse 1.5s infinite; }
+    </style>
+</head>
+<body class="text-slate-100 min-h-screen p-6">
+
+    <div class="max-w-5xl mx-auto">
+        <!-- Header Admin -->
+        <div class="flex items-center justify-between pb-6 border-b border-slate-800 mb-8">
+            <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-2xl">⚡</div>
+                <div>
+                    <h1 class="text-2xl font-black text-white">Trang Quản Lý Đơn Hàng (Real-Time)</h1>
+                    <p class="text-xs text-slate-400">Trạng thái: <span class="text-emerald-400 font-bold">🟢 Đang kết nối nhận đơn trực tiếp</span></p>
+                </div>
+            </div>
+            <button onclick="clearAllOrders()" class="px-4 py-2 bg-rose-600/20 text-rose-400 border border-rose-500/30 hover:bg-rose-600/30 text-xs font-bold rounded-xl transition">
+                🗑️ Xóa Lịch Sử Đơn
+            </button>
+        </div>
+
+        <!-- Khu Vực Nhận Đơn -->
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-base font-extrabold text-slate-300">📥 Danh Sách Đơn Mới Nhận:</h2>
+            <span id="order-count-badge" class="px-3 py-1 bg-slate-800 text-xs font-bold rounded-full text-slate-300">0 đơn</span>
+        </div>
+
+        <div id="orders-container" class="space-y-4">
+            <!-- Đơn hàng sẽ tự động hiện lên đây -->
+        </div>
+    </div>
+
+    <!-- Âm báo có đơn mới -->
+    <audio id="order-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+    <script>
+        const channel = new BroadcastChannel('smartnutri_orders');
+        const container = document.getElementById('orders-container');
+
+        // Đọc đơn hàng đã lưu từ trước khi load trang
+        function loadSavedOrders() {
+            const saved = JSON.parse(localStorage.getItem('smartnutri_all_orders') || '[]');
+            const newId = new URLSearchParams(window.location.search).get('new');
+            renderOrders(saved, newId);
+        }
+
+        // Lắng nghe tín hiệu Real-Time tức thì từ trang Đặt Món
+        channel.onmessage = function(event) {
+            const orderData = event.data;
+            
+            // Phát âm thanh báo đơn mới
+            document.getElementById('order-sound').play().catch(() => {});
+
+            // Lấy danh sách cũ, thêm đơn mới lên đầu và hiển thị
+            const saved = JSON.parse(localStorage.getItem('smartnutri_all_orders') || '[]');
+            renderOrders(saved, orderData.orderId);
+        };
+
+        function renderOrders(orders, latestId = null) {
+            document.getElementById('order-count-badge').textContent = `${orders.length} đơn hàng`;
+
+            if (orders.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-16 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500">
+                        <p class="text-sm font-bold">Chưa có đơn hàng nào.</p>
+                        <p class="text-xs mt-1">Khi khách hàng nhấn đặt ở trang Đặt Món, thông báo sẽ lập tức nhảy ở đây!</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = orders.map(order => {
+                const isNew = order.orderId === latestId;
+                return `
+                    <div class="bg-slate-900 border ${isNew ? 'border-2 border-orange-500 new-order-card shadow-2xl shadow-orange-500/20' : 'border-slate-800'} rounded-3xl p-6 transition">
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-800 gap-2">
+                            <div>
+                                <span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                                    Đơn Hàng #${order.orderId}
+                                </span>
+                                <h3 class="text-xl font-black text-white mt-2">
+                                    👤 Khách hàng <span class="text-emerald-400 font-black">${order.customerName}</span> vừa chốt đơn!
+                                </h3>
+                                <p class="text-xs text-slate-400 mt-0.5">SĐT: ${order.customerPhone} | Thể trạng: BMI ${order.profile.bmi} (${order.profile.bmiStatus})</p>
+                            </div>
+                            <div class="text-left sm:text-right">
+                                <span class="text-xs text-slate-400 font-medium block">⏰ Thời Gian Đặt:</span>
+                                <span class="text-xs font-black text-amber-400">${order.orderedAt}</span>
+                            </div>
+                        </div>
+
+                        <!-- Chi tiết món ăn -->
+                        <div class="py-4 space-y-2">
+                            <span class="text-xs font-bold text-slate-400 block uppercase">Chi Tiết Món Ăn:</span>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                ${order.items.map(item => `
+                                    <div class="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                                        <span class="text-xs font-bold text-slate-200">${item.name}</span>
+                                        <span class="text-xs font-black text-orange-400">x${item.qty} (${item.cals * item.qty} kcal)</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-bold">
+                            <span class="text-slate-400">Tổng Calo Khay Ăn:</span>
+                            <span class="text-orange-400 font-extrabold text-sm">${order.totalCals.toLocaleString()} kcal / Mục tiêu: ${order.profile.targetCalories.toLocaleString()} kcal</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function clearAllOrders() {
+            if (confirm('Bạn có chắc muốn xóa tất cả lịch sử đơn không?')) {
+                localStorage.removeItem('smartnutri_all_orders');
+                loadSavedOrders();
+            }
+        }
+
+        // Tải danh sách đơn hàng khi mở trang Admin
+        loadSavedOrders();
+    </script>
+</body>
+</html>

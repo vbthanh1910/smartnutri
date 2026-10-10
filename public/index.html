@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartNutri Eats - Nhập Chỉ Số & Đặt Món Chuẩn BMI</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        food: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+        .food-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .food-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(234, 88, 12, 0.15); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col justify-between pb-28">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Header Trang Web -->
+    <header class="bg-white sticky top-0 z-40 border-b border-slate-200 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-food-600 flex items-center justify-center text-white font-bold shadow-md shadow-food-500/20">
+                    🍔
+                </div>
+                <div>
+                    <span class="text-xl font-black text-slate-900">SmartNutri <span class="text-food-600">Eats</span></span>
+                    <p class="text-[11px] text-slate-500 font-medium hidden sm:block">Tư Vấn Dinh Dưỡng BMI & Đặt Món Thông Minh</p>
+                </div>
+            </div>
+
+            <!-- Steps Progress Indicator & Admin Link -->
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-1.5 text-xs font-bold bg-slate-100 p-1.5 rounded-2xl">
+                    <span id="badge-step-1" class="px-3 py-1 rounded-xl bg-food-600 text-white transition-all">1. Nhập Chỉ Số</span>
+                    <span class="text-slate-400">➔</span>
+                    <span id="badge-step-2" class="px-3 py-1 rounded-xl text-slate-400 transition-all">2. Chọn Món Ăn</span>
+                </div>
+
+                <a href="admin.html" target="_blank" class="px-3.5 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4 text-food-500"></i>
+                    <span class="hidden md:inline">Trang Quản Lý</span>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
+
+        <!-- ================= BƯỚC 1: FORM NHẬP TÊN & CHỈ SỐ CƠ THỂ ================= -->
+        <section id="step-1-container" class="max-w-3xl mx-auto transition-all duration-300">
+            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200">
+                <div class="text-center mb-6">
+                    <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-food-100 text-food-600 uppercase tracking-wider inline-block mb-2">🌱 Bước 1 / 2</span>
+                    <h1 class="text-2xl font-black text-slate-900">Nhập Thông Tin & Chỉ Số Cơ Thể</h1>
+                    <p class="text-xs text-slate-500 mt-1">Vui lòng hoàn tất chỉ số sinh học để hệ thống tính BMI & đưa ra thực đơn món ăn cá nhân hóa.</p>
+                </div>
+
+                <form onsubmit="handleFormSubmit(event)" class="space-y-5">
+                    <!-- 1. Họ Tên & Số Điện Thoại -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Họ và Tên <span class="text-rose-500">*</span></label>
+                            <input type="text" id="customer-name" value="Nguyễn Văn A" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none text-food-600">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Số Điện Thoại <span class="text-rose-500">*</span></label>
+                            <input type="text" id="customer-phone" value="0987654321" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                        </div>
+                    </div>
+
+                    <!-- 2. Giới tính, Tuổi, Chiều cao, Cân nặng -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Giới Tính</label>
+                            <select id="gender" class="w-full px-3 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                                <option value="male" selected>Nam</option>
+                                <option value="female">Nữ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tuổi (Năm)</label>
+                            <input type="number" id="age" min="10" max="100" value="25" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Chiều Cao (cm)</label>
+                            <input type="number" id="height" min="100" max="230" value="168" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Cân Nặng (kg)</label>
+                            <input type="number" id="weight" min="30" max="200" step="0.5" value="62" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                        </div>
+                    </div>
+
+                    <!-- 3. Mức vận động & Mục tiêu -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Mức Độ Vận Động</label>
+                            <select id="activity" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-medium text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                                <option value="1.2">Ít vận động (Văn phòng, ngồi nhiều)</option>
+                                <option value="1.375">Vận động nhẹ (Tập 1-3 buổi/tuần)</option>
+                                <option value="1.55" selected>Vận động vừa (Tập 3-5 buổi/tuần)</option>
+                                <option value="1.725">Vận động nhiều (Tập 6-7 buổi/tuần)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Mục Tiêu Thể Trạng</label>
+                            <select id="goal" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 text-food-600 focus:ring-2 focus:ring-food-500 outline-none">
+                                <option value="lose" selected>Giảm cân an toàn (-500 kcal)</option>
+                                <option value="maintain">Giữ dáng / Duy trì calo</option>
+                                <option value="gain">Tăng cân lành mạnh (+400 kcal)</option>
+                                <option value="muscle">Tăng cơ giảm mỡ (+300 kcal)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full py-4 bg-food-600 hover:bg-food-700 text-white font-black rounded-2xl transition-all shadow-lg shadow-food-500/30 flex items-center justify-center gap-2 text-base">
+                        <i data-lucide="sparkles" class="w-5 h-5"></i>
+                        Phân Tích Chỉ Số & Xem Đề Nghị Món Ăn ➔
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ================= BƯỚC 2: KẾT QUẢ PHÂN TÍCH & ĐỀ NGHỊ MÓN ĂN ================= -->
+        <section id="step-2-container" class="hidden transition-all duration-300">
+            <!-- Thanh Báo Chỉ Số BMI & Calo Cá Nhân -->
+            <div class="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-6 text-white mb-8 shadow-xl">
+                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+                    <div>
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase bg-food-500 text-white">Kết Quả Phân Tích BMI</span>
+                            <button onclick="goToStep(1)" class="text-xs text-slate-300 hover:text-white underline font-bold flex items-center gap-1">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Sửa Chỉ Số
+                            </button>
+                        </div>
+                        <h2 class="text-2xl font-black flex items-center gap-2">
+                            Khách Hàng: <span id="res-name-tag" class="text-food-500">Nguyễn Văn A</span>
+                        </h2>
+                        <p class="text-xs text-slate-300 mt-1">
+                            BMI: <strong id="res-bmi" class="text-white">--</strong> (<span id="res-bmi-status" class="text-food-400 font-bold">--</span>) | 
+                            Mục Tiêu: <strong id="res-target-cal" class="text-food-400">--</strong> kcal/ngày | 
+                            BMR: <span id="res-bmr" class="text-white">--</span> kcal
+                        </p>
+                    </div>
+
+                    <!-- Macro Progress Quick Pills -->
+                    <div class="grid grid-cols-3 gap-3 w-full lg:w-auto">
+                        <div class="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-center">
+                            <span class="text-[10px] text-slate-400 block font-bold uppercase">Đạm (Protein)</span>
+                            <span id="res-protein" class="text-lg font-black text-amber-400">--g</span>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-center">
+                            <span class="text-[10px] text-slate-400 block font-bold uppercase">Carbs</span>
+                            <span id="res-carbs" class="text-lg font-black text-blue-400">--g</span>
+                        </div>
+                        <div class="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-center">
+                            <span class="text-[10px] text-slate-400 block font-bold uppercase">Chất Béo</span>
+                            <span id="res-fat" class="text-lg font-black text-rose-400">--g</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Khai báo lời khuyên dinh dưỡng theo BMI -->
+            <div id="bmi-advice-box" class="p-4 rounded-2xl bg-orange-50 border border-orange-200 mb-8 text-xs font-semibold text-orange-900 flex items-start gap-3">
+                <i data-lucide="info" class="w-5 h-5 text-food-600 shrink-0 mt-0.5"></i>
+                <div id="bmi-advice-text">Dựa vào chỉ số BMI của bạn, dưới đây là danh sách thực đơn món ăn đã được tối ưu hóa theo lượng Calo và Tỷ lệ Đạm/Fat.</div>
+            </div>
+
+            <!-- Danh Sách Món Ăn Đề Nghị -->
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="utensils" class="w-5 h-5 text-food-600"></i>
+                    Đề Nghị Món Ăn Dành Riêng Cho Thể Trạng Của Bạn
+                </h3>
+            </div>
+
+            <div id="food-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Javascript Render Food Cards -->
+            </div>
+        </section>
+    </main>
+
+    <!-- THANH GIỎ HÀNG FLOATING TỔNG KẾT CALO & CHỈNH MÓN -->
+    <div id="floating-cart" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-2xl bg-slate-900/95 backdrop-blur-md text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between hidden">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="toggleCartModal()">
+            <div class="relative w-10 h-10 rounded-xl bg-food-600 flex items-center justify-center font-black shrink-0">
+                🛒
+                <span id="cart-badge-count" class="absolute -top-1.5 -right-1.5 bg-white text-food-600 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">0</span>
+            </div>
+            <div>
+                <div class="flex items-baseline gap-2">
+                    <span id="cart-cals" class="text-base sm:text-lg font-black text-food-500">0</span>
+                    <span class="text-xs text-slate-400">/ <span id="cart-target-cals">0</span> kcal</span>
+                </div>
+                <p id="cart-count" class="text-xs text-slate-300">Bấm vào đây để chỉnh sửa khay ăn</p>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-2">
+            <button onclick="toggleCartModal()" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl transition border border-slate-700 flex items-center gap-1.5">
+                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Chỉnh Món
+            </button>
+            <button onclick="sendOrderToAdmin()" class="px-4 py-2.5 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition flex items-center gap-1.5">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i> Chốt Đơn
+            </button>
+        </div>
+    </div>
+
+    <!-- MODAL QUẢN LÝ & CHỈNH SỬA KHAY ĂN (POPUP CHỈNH MÓN) -->
+    <div id="cart-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                    <div class="p-2 bg-food-100 text-food-600 rounded-xl">
+                        <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                    </div>
+                    <h3 class="font-extrabold text-slate-900 text-base">Chỉnh Sửa Món Đã Chọn</h3>
+                </div>
+                <button onclick="toggleCartModal()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <!-- Danh sách món có nút tăng giảm xóa -->
+            <div id="modal-cart-items" class="py-4 flex-grow overflow-y-auto custom-scrollbar space-y-3">
+                <!-- Javascript Render Cart Items -->
+            </div>
+
+            <!-- Tổng calo & nút thao tác -->
+            <div class="pt-4 border-t border-slate-100 space-y-3">
+                <div class="flex justify-between items-center text-xs font-bold text-slate-600">
+                    <span>Calo Mục Tiêu (BMI):</span>
+                    <span id="modal-target-cals" class="text-slate-900 font-extrabold">0 kcal</span>
+                </div>
+                <div class="flex justify-between items-center text-sm font-extrabold text-slate-900">
+                    <span>Tổng Calo Đã Chọn:</span>
+                    <span id="modal-total-cals" class="text-food-600 text-lg">0 kcal</span>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="clearCart()" class="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">
+                        Xóa Hết
+                    </button>
+                    <button onclick="toggleCartModal()" class="w-2/3 py-3 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition">
+                        Hoàn Tất
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        lucide.createIcons();
+
+        // Kênh BroadcastChannel kết nối Real-time với admin.html
+        const channel = new BroadcastChannel('smartnutri_orders');
+        
+        let userMetrics = {};
+        let cart = [];
+
+        // Kho món ăn mẫu
+        const dishes = [
+            { id: '1', name: 'Cơm Gạo Lứt Ức Gà Áp Chảo', cals: 450, protein: '38g', carbs: '45g', fat: '8g', img: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', tag: 'Ưu Tiên Giảm Cân' },
+            { id: '2', name: 'Salad Bò Mỹ Sốt Dầu Giấm', cals: 380, protein: '32g', carbs: '18g', fat: '14g', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400', tag: 'Gợi Ý BMI Cao' },
+            { id: '3', name: 'Cá Hồi Nướng Măng Tây', cals: 520, protein: '35g', carbs: '30g', fat: '22g', img: 'https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=400', tag: 'Đồ Ăn Lành Mạnh' },
+            { id: '4', name: 'Sinh Tố Bơ Yến Mạch Protein', cals: 280, protein: '15g', carbs: '35g', fat: '9g', img: 'https://images.unsplash.com/photo-1553530666-ba11a7da3888?w=400', tag: 'Bữa Phụ Chống Đói' }
+        ];
+
+        function goToStep(step) {
+            const step1 = document.getElementById('step-1-container');
+            const step2 = document.getElementById('step-2-container');
+            const cartBar = document.getElementById('floating-cart');
+            const badge1 = document.getElementById('badge-step-1');
+            const badge2 = document.getElementById('badge-step-2');
+
+            if (step === 1) {
+                step1.classList.remove('hidden');
+                step2.classList.add('hidden');
+                cartBar.classList.add('hidden');
+                badge1.className = "px-3 py-1 rounded-xl bg-food-600 text-white transition-all";
+                badge2.className = "px-3 py-1 rounded-xl text-slate-400 transition-all";
+            } else {
+                step1.classList.add('hidden');
+                step2.classList.remove('hidden');
+                cartBar.classList.remove('hidden');
+                badge2.className = "px-3 py-1 rounded-xl bg-food-600 text-white transition-all";
+                badge1.className = "px-3 py-1 rounded-xl text-slate-400 transition-all";
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function handleFormSubmit(e) {
+            e.preventDefault();
+
+            const name = document.getElementById('customer-name').value.trim();
+            const phone = document.getElementById('customer-phone').value.trim();
+            const gender = document.getElementById('gender').value;
+            const age = parseInt(document.getElementById('age').value);
+            const height = parseFloat(document.getElementById('height').value);
+            const weight = parseFloat(document.getElementById('weight').value);
+            const activity = parseFloat(document.getElementById('activity').value);
+            const goal = document.getElementById('goal').value;
+
+            // 1. Tính BMI
+            const heightM = height / 100;
+            const bmi = parseFloat((weight / (heightM * heightM)).toFixed(1));
+            let bmiStatus = '';
+            let advice = '';
+
+            if (bmi < 18.5) {
+                bmiStatus = 'Thiếu cân';
+                advice = `Chỉ số BMI của bạn là <strong>${bmi} (Thiếu cân)</strong>. Thực đơn gợi ý bên dưới tập trung bổ sung dinh dưỡng và đạm cao để giúp bạn tăng cân an toàn.`;
+            } else if (bmi <= 22.9) {
+                bmiStatus = 'Bình thường / Chuẩn Form';
+                advice = `Chỉ số BMI của bạn là <strong>${bmi} (Cân đối)</strong>. Các món ăn bên dưới giúp bạn duy trì vóc dáng lý tưởng và bổ sung năng lượng bền bỉ.`;
+            } else if (bmi <= 24.9) {
+                bmiStatus = 'Tiền thừa cân';
+                advice = `Chỉ số BMI của bạn là <strong>${bmi} (Thừa cân nhẹ)</strong>. Thực đơn đề nghị ưu tiên cá củ, rau xanh và ức gà ít chất béo.`;
+            } else {
+                bmiStatus = 'Béo phì';
+                advice = `Chỉ số BMI của bạn là <strong>${bmi} (Béo phì)</strong>. Đề nghị ưu tiên chọn các món giàu xơ, đạm nạc và giảm tinh bột xấu.`;
+            }
+
+            // 2. Tính BMR
+            let bmr = (10 * weight) + (6.25 * height) - (5 * age);
+            bmr = gender === 'male' ? Math.round(bmr + 5) : Math.round(bmr - 161);
+
+            // 3. TDEE & Calo Mục Tiêu
+            const tdee = Math.round(bmr * activity);
+            let targetCalories = tdee;
+            if (goal === 'lose') targetCalories = Math.max(tdee - 500, 1200);
+            else if (goal === 'gain') targetCalories = tdee + 400;
+            else if (goal === 'muscle') targetCalories = tdee + 300;
+
+            // 4. Macros
+            let proteinGrams = Math.round(weight * 1.8);
+            let fatGrams = Math.round((targetCalories * 0.25) / 9);
+            let carbGrams = Math.round((targetCalories - (proteinGrams * 4 + fatGrams * 9)) / 4);
+
+            userMetrics = { name, phone, gender, age, height, weight, bmi, bmiStatus, bmr, tdee, targetCalories, proteinGrams, carbGrams, fatGrams };
+
+            // Render sang Bước 2
+            document.getElementById('res-name-tag').textContent = name;
+            document.getElementById('res-bmi').textContent = bmi;
+            document.getElementById('res-bmi-status').textContent = bmiStatus;
+            document.getElementById('res-bmr').textContent = bmr.toLocaleString();
+            document.getElementById('res-target-cal').textContent = targetCalories.toLocaleString();
+            document.getElementById('res-protein').textContent = `${proteinGrams}g`;
+            document.getElementById('res-carbs').textContent = `${carbGrams}g`;
+            document.getElementById('res-fat').textContent = `${fatGrams}g`;
+            
+            document.getElementById('cart-target-cals').textContent = targetCalories.toLocaleString();
+            document.getElementById('modal-target-cals').textContent = `${targetCalories.toLocaleString()} kcal`;
+            document.getElementById('bmi-advice-text').innerHTML = advice;
+
+            renderMenu();
+            goToStep(2);
+            showToast('Đã phân tích chỉ số BMI thành công!', 'success');
+        }
+
+        function renderMenu() {
+            document.getElementById('food-menu-grid').innerHTML = dishes.map(d => `
+                <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden food-card flex flex-col justify-between p-4">
+                    <div>
+                        <div class="relative h-40 w-full overflow-hidden rounded-2xl bg-slate-100 mb-3">
+                            <img src="${d.img}" class="w-full h-full object-cover">
+                            <span class="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-md text-white text-[10px] font-black px-2.5 py-1 rounded-full uppercase">${d.tag}</span>
+                            <span class="absolute bottom-2 right-2 bg-food-600 text-white text-xs font-black px-2.5 py-1 rounded-xl shadow-md">${d.cals} kcal</span>
+                        </div>
+                        <h4 class="font-extrabold text-slate-900 text-sm mb-1">${d.name}</h4>
+                        <p class="text-[11px] font-bold text-slate-500 mb-3">P: ${d.protein} | C: ${d.carbs} | F: ${d.fat}</p>
+                    </div>
+                    <button onclick="addToCart('${d.id}', '${d.name}', ${d.cals}, '${d.img}')" class="w-full py-2.5 bg-food-50 hover:bg-food-100 text-food-700 font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-1 border border-food-200">
+                        + Thêm Vào Khay Ăn
+                    </button>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function addToCart(id, name, cals, img) {
+            const item = cart.find(i => i.id === id);
+            if (item) {
+                item.qty++;
+            } else {
+                cart.push({ id, name, cals, img, qty: 1 });
+            }
+            updateCartUI();
+            showToast(`Đã thêm món "${name}"`, 'success');
+        }
+
+        function updateQuantity(id, delta) {
+            const item = cart.find(i => i.id === id);
+            if (!item) return;
+
+            item.qty += delta;
+            if (item.qty <= 0) {
+                cart = cart.filter(i => i.id !== id);
+            }
+            updateCartUI();
+        }
+
+        function clearCart() {
+            cart = [];
+            updateCartUI();
+            showToast('Đã xóa sạch khay ăn!', 'success');
+        }
+
+        function updateCartUI() {
+            const totalCals = cart.reduce((s, i) => s + (i.cals * i.qty), 0);
+            const totalQty = cart.reduce((s, i) => s + i.qty, 0);
+
+            document.getElementById('cart-cals').textContent = totalCals.toLocaleString();
+            document.getElementById('modal-total-cals').textContent = `${totalCals.toLocaleString()} kcal`;
+            document.getElementById('cart-badge-count').textContent = totalQty;
+            document.getElementById('cart-count').textContent = totalQty === 0 ? 'Chưa chọn món nào' : `Đã chọn ${totalQty} món`;
+
+            // Render lại danh sách món ăn trong Modal Popup
+            const listContainer = document.getElementById('modal-cart-items');
+            if (cart.length === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-8 text-slate-400">
+                        <i data-lucide="shopping-bag" class="w-10 h-10 mx-auto mb-2 opacity-40"></i>
+                        <p class="text-xs font-semibold">Khay ăn của bạn đang trống</p>
+                    </div>
+                `;
+            } else {
+                listContainer.innerHTML = cart.map(item => `
+                    <div class="flex items-center justify-between p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div class="flex items-center gap-3">
+                            <img src="${item.img}" class="w-12 h-12 rounded-xl object-cover" alt="${item.name}">
+                            <div>
+                                <h5 class="text-xs font-extrabold text-slate-900 line-clamp-1">${item.name}</h5>
+                                <span class="text-[11px] text-food-600 font-bold">${(item.cals * item.qty).toLocaleString()} kcal</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="updateQuantity('${item.id}', -1)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center hover:bg-slate-100">-</button>
+                            <span class="text-xs font-extrabold text-slate-900 w-4 text-center">${item.qty}</span>
+                            <button onclick="updateQuantity('${item.id}', 1)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold text-xs flex items-center justify-center hover:bg-slate-100">+</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            lucide.createIcons();
+        }
+
+        function toggleCartModal() {
+            document.getElementById('cart-modal').classList.toggle('hidden');
+        }
+
+        function sendOrderToAdmin() {
+            if (cart.length === 0) return alert('Vui lòng chọn ít nhất 1 món ăn!');
+
+            const orderData = {
+                orderId: 'DH' + Math.floor(1000 + Math.random() * 9000),
+                customerName: userMetrics.name,
+                customerPhone: userMetrics.phone,
+                profile: userMetrics,
+                items: cart,
+                totalCals: cart.reduce((s, i) => s + (i.cals * i.qty), 0),
+                orderedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' - ' + new Date().toLocaleDateString('vi-VN')
+            };
+
+            // Lưu vào LocalStorage trước khi chuyển trang
+            const oldOrders = JSON.parse(localStorage.getItem('smartnutri_all_orders') || '[]');
+            oldOrders.unshift(orderData);
+            localStorage.setItem('smartnutri_all_orders', JSON.stringify(oldOrders));
+
+            // Phát tín hiệu cho tab admin đang mở (nếu có)
+            channel.postMessage(orderData);
+
+            cart = [];
+            updateCartUI();
+            document.getElementById('cart-modal').classList.add('hidden');
+            alert('🎉 Đã chốt đơn #' + orderData.orderId + ' thành công! Cảm ơn bạn ' + userMetrics.name + '.');
+        }
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl font-semibold text-xs flex items-center gap-2 transition-all pointer-events-auto border border-slate-700`;
+            toast.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-food-500"></i> ${message}`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.remove(), 2500);
+        }
+    </script>
+</body>
+</html>
