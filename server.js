@@ -7,11 +7,16 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3002;
 
-const { SUPABASE_URL, SUPABASE_SECRET_KEY, ADMIN_PASSWORD } = process.env;
-if (!SUPABASE_URL || !SUPABASE_SECRET_KEY || !ADMIN_PASSWORD) {
-    console.error('Thiếu SUPABASE_URL, SUPABASE_SECRET_KEY hoặc ADMIN_PASSWORD trong file .env');
+// Báo rõ biến nào đang thiếu (không in giá trị để tránh lộ key)
+const REQUIRED = ['SUPABASE_URL', 'SUPABASE_SECRET_KEY', 'ADMIN_PASSWORD'];
+const missing = REQUIRED.filter(k => !process.env[k] || !process.env[k].trim());
+if (missing.length) {
+    console.error('Thiếu biến trong file .env: ' + missing.join(', '));
+    console.error('Các biến đang đọc được: ' + (REQUIRED.filter(k => !missing.includes(k)).join(', ') || '(không có)'));
+    console.error('Kiểm tra: đúng tên biến, dạng KEY=value (không dấu cách quanh "="), file lưu mã hóa UTF-8, nằm cùng thư mục với server.js.');
     process.exit(1);
 }
+const { SUPABASE_URL, SUPABASE_SECRET_KEY, ADMIN_PASSWORD } = process.env;
 
 const supabase = createClient(SUPABASE_URL.trim(), SUPABASE_SECRET_KEY.trim());
 
@@ -26,6 +31,12 @@ function safeEqual(a, b) {
     return crypto.timingSafeEqual(ha, hb);
 }
 
+// Bọc handler async để lỗi bất ngờ (mất mạng...) không làm sập server (Express 4)
+const wrap = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(err => {
+    console.error('[SERVER] Lỗi không mong đợi:', err);
+    res.status(500).json({ status: 'error', message: 'Lỗi máy chủ.' });
+});
+
 // Chỉ admin có mật khẩu mới đọc/xóa được đơn
 function requireAdmin(req, res, next) {
     const pw = req.get('x-admin-password') || '';
@@ -37,6 +48,11 @@ function requireAdmin(req, res, next) {
 
 // Giới hạn 20 đơn / phút / IP để tránh bị gửi rác
 const hits = new Map();
+setInterval(() => {
+    const now = Date.now();
+    for (const [ip, rec] of hits) if (now > rec.reset) hits.delete(ip);
+}, 60000).unref();
+
 function rateLimit(req, res, next) {
     const now = Date.now();
     const rec = hits.get(req.ip);
@@ -57,7 +73,7 @@ function num(v, min, max) {
 }
 
 // ---------- Khách chốt đơn ----------
-app.post('/api/orders', rateLimit, async (req, res) => {
+app.post('/api/orders', rateLimit, wrap(async (req, res) => {
     const b = req.body || {};
     const profile = b.profile || {};
 
@@ -118,10 +134,10 @@ app.post('/api/orders', rateLimit, async (req, res) => {
 
     console.log(`[SUPABASE] Đã lưu đơn #${data.id} của ${name}`);
     res.status(201).json({ status: 'success', id: data.id, message: `Đã lưu đơn #${data.id}!` });
-});
+}));
 
 // ---------- Admin ----------
-app.get('/api/orders', requireAdmin, async (req, res) => {
+app.get('/api/orders', requireAdmin, wrap(async (req, res) => {
     const { data, error } = await supabase
         .from('orders')
         .select('*')
@@ -133,16 +149,16 @@ app.get('/api/orders', requireAdmin, async (req, res) => {
         return res.status(500).json({ status: 'error', message: 'Không đọc được danh sách đơn.' });
     }
     res.json(data);
-});
+}));
 
-app.delete('/api/orders', requireAdmin, async (req, res) => {
+app.delete('/api/orders', requireAdmin, wrap(async (req, res) => {
     const { error } = await supabase.from('orders').delete().gt('id', 0);
     if (error) {
         console.error('[SUPABASE] Lỗi khi xóa đơn:', error.message);
         return res.status(500).json({ status: 'error', message: 'Không xóa được đơn.' });
     }
     res.json({ status: 'success' });
-});
+}));
 
 app.listen(PORT, () => {
     console.log(`Server đang chạy. Khách: http://localhost:${PORT}  |  Admin: http://localhost:${PORT}/admin.html`);

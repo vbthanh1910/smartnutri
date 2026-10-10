@@ -4,8 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SmartNutri Eats - Nhập Chỉ Số & Đặt Món Chuẩn BMI</title>
-    
-    <!-- Tailwind CSS CDN -->
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -24,8 +23,7 @@
             }
         }
     </script>
-    
-    <!-- Lucide Icons -->
+
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
@@ -40,7 +38,6 @@
 
     <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-    <!-- Header Trang Web -->
     <header class="bg-white sticky top-0 z-40 border-b border-slate-200 shadow-sm">
         <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-3">
@@ -53,7 +50,6 @@
                 </div>
             </div>
 
-            <!-- Steps Progress Indicator & Admin Link -->
             <div class="flex items-center gap-3">
                 <div class="flex items-center gap-1.5 text-xs font-bold bg-slate-100 p-1.5 rounded-2xl">
                     <span id="badge-step-1" class="px-3 py-1 rounded-xl bg-food-600 text-white transition-all">1. Nhập Chỉ Số</span>
@@ -71,7 +67,7 @@
 
     <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
 
-        <!-- ================= BƯỚC 1: FORM NHẬP TÊN & CHỈ SỐ CƠ THỂ ================= -->
+        <!-- BƯỚC 1 -->
         <section id="step-1-container" class="max-w-3xl mx-auto transition-all duration-300">
             <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200">
                 <div class="text-center mb-6">
@@ -81,19 +77,17 @@
                 </div>
 
                 <form onsubmit="handleFormSubmit(event)" class="space-y-5">
-                    <!-- 1. Họ Tên & Số Điện Thoại -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Họ và Tên <span class="text-rose-500">*</span></label>
-                            <input type="text" id="customer-name" value="Nguyễn Văn A" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none text-food-600">
+                            <input type="text" id="customer-name" value="Nguyễn Văn A" required maxlength="100" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none text-food-600">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Số Điện Thoại <span class="text-rose-500">*</span></label>
-                            <input type="text" id="customer-phone" value="0987654321" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                            <input type="text" id="customer-phone" value="0987654321" required pattern="[0-9+\s.\-]{8,20}" title="8-20 ký tự: số, +, khoảng trắng, dấu chấm hoặc gạch ngang" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
                         </div>
                     </div>
 
-                    <!-- 2. Giới tính, Tuổi, Chiều cao, Cân nặng -->
                     <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Giới Tính</label>
@@ -116,7 +110,6 @@
                         </div>
                     </div>
 
-                    <!-- 3. Mức vận động & Mục tiêu -->
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Mức Độ Vận Động</label>
@@ -146,9 +139,8 @@
             </div>
         </section>
 
-        <!-- ================= BƯỚC 2: KẾT QUẢ PHÂN TÍCH & ĐỀ NGHỊ MÓN ĂN ================= -->
+        <!-- BƯỚC 2 -->
         <section id="step-2-container" class="hidden transition-all duration-300">
-            <!-- Thanh Báo Chỉ Số BMI & Calo Cá Nhân -->
             <div class="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-6 text-white mb-8 shadow-xl">
                 <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                     <div>
@@ -162,13 +154,12 @@
                             Khách Hàng: <span id="res-name-tag" class="text-food-500">Nguyễn Văn A</span>
                         </h2>
                         <p class="text-xs text-slate-300 mt-1">
-                            BMI: <strong id="res-bmi" class="text-white">--</strong> (<span id="res-bmi-status" class="text-food-400 font-bold">--</span>) | 
-                            Mục Tiêu: <strong id="res-target-cal" class="text-food-400">--</strong> kcal/ngày | 
+                            BMI: <strong id="res-bmi" class="text-white">--</strong> (<span id="res-bmi-status" class="text-food-400 font-bold">--</span>) |
+                            Mục Tiêu: <strong id="res-target-cal" class="text-food-400">--</strong> kcal/ngày |
                             BMR: <span id="res-bmr" class="text-white">--</span> kcal
                         </p>
                     </div>
 
-                    <!-- Macro Progress Quick Pills -->
                     <div class="grid grid-cols-3 gap-3 w-full lg:w-auto">
                         <div class="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-center">
                             <span class="text-[10px] text-slate-400 block font-bold uppercase">Đạm (Protein)</span>
@@ -186,13 +177,11 @@
                 </div>
             </div>
 
-            <!-- Khai báo lời khuyên dinh dưỡng theo BMI -->
             <div id="bmi-advice-box" class="p-4 rounded-2xl bg-orange-50 border border-orange-200 mb-8 text-xs font-semibold text-orange-900 flex items-start gap-3">
                 <i data-lucide="info" class="w-5 h-5 text-food-600 shrink-0 mt-0.5"></i>
                 <div id="bmi-advice-text">Dựa vào chỉ số BMI của bạn, dưới đây là danh sách thực đơn món ăn đã được tối ưu hóa theo lượng Calo và Tỷ lệ Đạm/Fat.</div>
             </div>
 
-            <!-- Danh Sách Món Ăn Đề Nghị -->
             <div class="flex items-center justify-between mb-4">
                 <h3 class="text-lg font-extrabold text-slate-900 flex items-center gap-2">
                     <i data-lucide="utensils" class="w-5 h-5 text-food-600"></i>
@@ -200,13 +189,11 @@
                 </h3>
             </div>
 
-            <div id="food-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                <!-- Javascript Render Food Cards -->
-            </div>
+            <div id="food-menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"></div>
         </section>
     </main>
 
-    <!-- THANH GIỎ HÀNG FLOATING TỔNG KẾT CALO & CHỈNH MÓN -->
+    <!-- Giỏ hàng nổi -->
     <div id="floating-cart" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-2xl bg-slate-900/95 backdrop-blur-md text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between hidden">
         <div class="flex items-center gap-3 cursor-pointer" onclick="toggleCartModal()">
             <div class="relative w-10 h-10 rounded-xl bg-food-600 flex items-center justify-center font-black shrink-0">
@@ -221,18 +208,18 @@
                 <p id="cart-count" class="text-xs text-slate-300">Bấm vào đây để chỉnh sửa khay ăn</p>
             </div>
         </div>
-        
+
         <div class="flex items-center gap-2">
             <button onclick="toggleCartModal()" class="px-3.5 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs rounded-xl transition border border-slate-700 flex items-center gap-1.5">
                 <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Chỉnh Món
             </button>
-            <button onclick="sendOrderToAdmin()" class="px-4 py-2.5 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition flex items-center gap-1.5">
-                <i data-lucide="send" class="w-3.5 h-3.5"></i> Chốt Đơn
+            <button id="btn-submit-order" onclick="sendOrderToAdmin()" class="px-4 py-2.5 bg-food-600 hover:bg-food-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-xl transition flex items-center gap-1.5">
+                <i data-lucide="send" class="w-3.5 h-3.5"></i> <span id="btn-submit-label">Chốt Đơn</span>
             </button>
         </div>
     </div>
 
-    <!-- MODAL QUẢN LÝ & CHỈNH SỬA KHAY ĂN (POPUP CHỈNH MÓN) -->
+    <!-- Modal chỉnh khay ăn -->
     <div id="cart-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
         <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
             <div class="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -247,12 +234,8 @@
                 </button>
             </div>
 
-            <!-- Danh sách món có nút tăng giảm xóa -->
-            <div id="modal-cart-items" class="py-4 flex-grow overflow-y-auto custom-scrollbar space-y-3">
-                <!-- Javascript Render Cart Items -->
-            </div>
+            <div id="modal-cart-items" class="py-4 flex-grow overflow-y-auto custom-scrollbar space-y-3"></div>
 
-            <!-- Tổng calo & nút thao tác -->
             <div class="pt-4 border-t border-slate-100 space-y-3">
                 <div class="flex justify-between items-center text-xs font-bold text-slate-600">
                     <span>Calo Mục Tiêu (BMI):</span>
@@ -274,17 +257,13 @@
         </div>
     </div>
 
-    <!-- JAVASCRIPT LOGIC -->
     <script>
         lucide.createIcons();
 
-        // Kênh BroadcastChannel kết nối Real-time với admin.html
-        const channel = new BroadcastChannel('smartnutri_orders');
-        
         let userMetrics = {};
         let cart = [];
+        let sending = false;
 
-        // Kho món ăn mẫu
         const dishes = [
             { id: '1', name: 'Cơm Gạo Lứt Ức Gà Áp Chảo', cals: 450, protein: '38g', carbs: '45g', fat: '8g', img: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400', tag: 'Ưu Tiên Giảm Cân' },
             { id: '2', name: 'Salad Bò Mỹ Sốt Dầu Giấm', cals: 380, protein: '32g', carbs: '18g', fat: '14g', img: 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400', tag: 'Gợi Ý BMI Cao' },
@@ -327,7 +306,6 @@
             const activity = parseFloat(document.getElementById('activity').value);
             const goal = document.getElementById('goal').value;
 
-            // 1. Tính BMI
             const heightM = height / 100;
             const bmi = parseFloat((weight / (heightM * heightM)).toFixed(1));
             let bmiStatus = '';
@@ -347,25 +325,21 @@
                 advice = `Chỉ số BMI của bạn là <strong>${bmi} (Béo phì)</strong>. Đề nghị ưu tiên chọn các món giàu xơ, đạm nạc và giảm tinh bột xấu.`;
             }
 
-            // 2. Tính BMR
             let bmr = (10 * weight) + (6.25 * height) - (5 * age);
             bmr = gender === 'male' ? Math.round(bmr + 5) : Math.round(bmr - 161);
 
-            // 3. TDEE & Calo Mục Tiêu
             const tdee = Math.round(bmr * activity);
             let targetCalories = tdee;
             if (goal === 'lose') targetCalories = Math.max(tdee - 500, 1200);
             else if (goal === 'gain') targetCalories = tdee + 400;
             else if (goal === 'muscle') targetCalories = tdee + 300;
 
-            // 4. Macros
             let proteinGrams = Math.round(weight * 1.8);
             let fatGrams = Math.round((targetCalories * 0.25) / 9);
             let carbGrams = Math.round((targetCalories - (proteinGrams * 4 + fatGrams * 9)) / 4);
 
             userMetrics = { name, phone, gender, age, height, weight, bmi, bmiStatus, bmr, tdee, targetCalories, proteinGrams, carbGrams, fatGrams };
 
-            // Render sang Bước 2
             document.getElementById('res-name-tag').textContent = name;
             document.getElementById('res-bmi').textContent = bmi;
             document.getElementById('res-bmi-status').textContent = bmiStatus;
@@ -374,7 +348,7 @@
             document.getElementById('res-protein').textContent = `${proteinGrams}g`;
             document.getElementById('res-carbs').textContent = `${carbGrams}g`;
             document.getElementById('res-fat').textContent = `${fatGrams}g`;
-            
+
             document.getElementById('cart-target-cals').textContent = targetCalories.toLocaleString();
             document.getElementById('modal-target-cals').textContent = `${targetCalories.toLocaleString()} kcal`;
             document.getElementById('bmi-advice-text').innerHTML = advice;
@@ -396,7 +370,7 @@
                         <h4 class="font-extrabold text-slate-900 text-sm mb-1">${d.name}</h4>
                         <p class="text-[11px] font-bold text-slate-500 mb-3">P: ${d.protein} | C: ${d.carbs} | F: ${d.fat}</p>
                     </div>
-                    <button onclick="addToCart('${d.id}', '${d.name}', ${d.cals}, '${d.img}')" class="w-full py-2.5 bg-food-50 hover:bg-food-100 text-food-700 font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-1 border border-food-200">
+                    <button onclick="addToCart('${d.id}')" class="w-full py-2.5 bg-food-50 hover:bg-food-100 text-food-700 font-extrabold text-xs rounded-xl transition flex items-center justify-center gap-1 border border-food-200">
                         + Thêm Vào Khay Ăn
                     </button>
                 </div>
@@ -404,21 +378,22 @@
             lucide.createIcons();
         }
 
-        function addToCart(id, name, cals, img) {
+        function addToCart(id) {
+            const dish = dishes.find(d => d.id === id);
+            if (!dish) return;
             const item = cart.find(i => i.id === id);
             if (item) {
                 item.qty++;
             } else {
-                cart.push({ id, name, cals, img, qty: 1 });
+                cart.push({ id: dish.id, name: dish.name, cals: dish.cals, img: dish.img, qty: 1 });
             }
             updateCartUI();
-            showToast(`Đã thêm món "${name}"`, 'success');
+            showToast(`Đã thêm món "${dish.name}"`, 'success');
         }
 
         function updateQuantity(id, delta) {
             const item = cart.find(i => i.id === id);
             if (!item) return;
-
             item.qty += delta;
             if (item.qty <= 0) {
                 cart = cart.filter(i => i.id !== id);
@@ -441,7 +416,6 @@
             document.getElementById('cart-badge-count').textContent = totalQty;
             document.getElementById('cart-count').textContent = totalQty === 0 ? 'Chưa chọn món nào' : `Đã chọn ${totalQty} món`;
 
-            // Render lại danh sách món ăn trong Modal Popup
             const listContainer = document.getElementById('modal-cart-items');
             if (cart.length === 0) {
                 listContainer.innerHTML = `
@@ -475,32 +449,46 @@
             document.getElementById('cart-modal').classList.toggle('hidden');
         }
 
-        function sendOrderToAdmin() {
+        // Gửi đơn lên server -> server lưu vào Supabase
+        async function sendOrderToAdmin() {
+            if (sending) return;
             if (cart.length === 0) return alert('Vui lòng chọn ít nhất 1 món ăn!');
 
-            const orderData = {
-                orderId: 'DH' + Math.floor(1000 + Math.random() * 9000),
+            const btn = document.getElementById('btn-submit-order');
+            const label = document.getElementById('btn-submit-label');
+            sending = true;
+            btn.disabled = true;
+            label.textContent = 'Đang gửi...';
+
+            const payload = {
                 customerName: userMetrics.name,
                 customerPhone: userMetrics.phone,
                 profile: userMetrics,
-                items: cart,
-                totalCals: cart.reduce((s, i) => s + (i.cals * i.qty), 0),
-                orderedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' - ' + new Date().toLocaleDateString('vi-VN')
+                items: cart.map(i => ({ id: i.id, name: i.name, cals: i.cals, qty: i.qty }))
             };
 
-            // Lưu vào LocalStorage trước khi chuyển trang
-            const oldOrders = JSON.parse(localStorage.getItem('smartnutri_all_orders') || '[]');
-            oldOrders.unshift(orderData);
-            localStorage.setItem('smartnutri_all_orders', JSON.stringify(oldOrders));
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || 'Không gửi được đơn, vui lòng thử lại.');
 
-            // Phát tín hiệu cho tab admin đang mở (nếu có)
-            channel.postMessage(orderData);
-
-            cart = [];
-            updateCartUI();
-            document.getElementById('cart-modal').classList.add('hidden');
-            alert('🎉 Đã chốt đơn #' + orderData.orderId + ' thành công! Cảm ơn bạn ' + userMetrics.name + '.');
+                cart = [];
+                updateCartUI();
+                document.getElementById('cart-modal').classList.add('hidden');
+                alert('🎉 Đã chốt đơn #' + data.id + ' thành công! Cảm ơn bạn ' + userMetrics.name + '.');
+            } catch (err) {
+                alert('❌ ' + err.message);
+            } finally {
+                sending = false;
+                btn.disabled = false;
+                label.textContent = 'Chốt Đơn';
+            }
         }
+
         function showToast(message, type = 'success') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');

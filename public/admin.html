@@ -16,122 +16,207 @@
 </head>
 <body class="text-slate-100 min-h-screen p-6">
 
+    <!-- Form đăng nhập (thay cho prompt(), vì một số trình xem trước không hỗ trợ prompt) -->
+    <div id="login-box" class="hidden fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
+        <form onsubmit="submitLogin(event)" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 w-full max-w-sm space-y-4">
+            <div class="text-center">
+                <div class="w-12 h-12 mx-auto rounded-2xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-2xl mb-3">⚡</div>
+                <h2 class="text-lg font-black text-white">Đăng nhập quản trị</h2>
+            </div>
+            <input id="login-pw" type="password" placeholder="Nhập mật khẩu quản trị" autocomplete="current-password"
+                   class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500">
+            <p id="login-err" class="text-xs text-rose-400 font-bold min-h-[1rem]"></p>
+            <button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-sm transition">Vào trang quản lý</button>
+        </form>
+    </div>
+
     <div class="max-w-5xl mx-auto">
-        <!-- Header Admin -->
         <div class="flex items-center justify-between pb-6 border-b border-slate-800 mb-8">
             <div class="flex items-center gap-3">
                 <div class="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-2xl">⚡</div>
                 <div>
-                    <h1 class="text-2xl font-black text-white">Trang Quản Lý Đơn Hàng (Real-Time)</h1>
-                    <p class="text-xs text-slate-400">Trạng thái: <span class="text-emerald-400 font-bold">🟢 Đang kết nối nhận đơn trực tiếp</span></p>
+                    <h1 class="text-2xl font-black text-white">Trang Quản Lý Đơn Hàng</h1>
+                    <p class="text-xs text-slate-400">Trạng thái: <span id="status" class="text-emerald-400 font-bold">🟢 Đang kết nối</span></p>
                 </div>
             </div>
-            <button onclick="clearAllOrders()" class="px-4 py-2 bg-rose-600/20 text-rose-400 border border-rose-500/30 hover:bg-rose-600/30 text-xs font-bold rounded-xl transition">
-                🗑️ Xóa Lịch Sử Đơn
-            </button>
+            <div class="flex gap-2">
+                <button onclick="logout()" class="px-4 py-2 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 text-xs font-bold rounded-xl transition">Đăng xuất</button>
+                <button id="btn-clear" onclick="clearAllOrders()" class="px-4 py-2 bg-rose-600/20 text-rose-400 border border-rose-500/30 hover:bg-rose-600/30 text-xs font-bold rounded-xl transition">
+                    🗑️ Xóa Lịch Sử Đơn
+                </button>
+            </div>
         </div>
 
-        <!-- Khu Vực Nhận Đơn -->
         <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-extrabold text-slate-300">📥 Danh Sách Đơn Mới Nhận:</h2>
+            <h2 class="text-base font-extrabold text-slate-300">📥 Danh Sách Đơn Hàng:</h2>
             <span id="order-count-badge" class="px-3 py-1 bg-slate-800 text-xs font-bold rounded-full text-slate-300">0 đơn</span>
         </div>
 
-        <div id="orders-container" class="space-y-4">
-            <!-- Đơn hàng sẽ tự động hiện lên đây -->
-        </div>
+        <div id="orders-container" class="space-y-4"></div>
     </div>
 
-    <!-- Âm báo có đơn mới -->
     <audio id="order-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
     <script>
-        const channel = new BroadcastChannel('smartnutri_orders');
+        const POLL_MS = 5000;
         const container = document.getElementById('orders-container');
+        const statusEl = document.getElementById('status');
 
-        // Đọc đơn hàng đã lưu từ trước khi load trang
-        function loadSavedOrders() {
-            const saved = JSON.parse(localStorage.getItem('smartnutri_all_orders') || '[]');
-            const newId = new URLSearchParams(window.location.search).get('new');
-            renderOrders(saved, newId);
+        let knownIds = null;      // null = lần tải đầu tiên (không phát chuông)
+        let highlightIds = new Set();
+        let timer = null;
+
+        // Chống XSS: dữ liệu do khách nhập nên luôn escape trước khi chèn vào HTML
+        function esc(v) {
+            return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
-        // Lắng nghe tín hiệu Real-Time tức thì từ trang Đặt Món
-        channel.onmessage = function(event) {
-            const orderData = event.data;
-            
-            // Phát âm thanh báo đơn mới
-            document.getElementById('order-sound').play().catch(() => {});
+        let pwMemory = '';
+        function getPassword() {
+            try { return sessionStorage.getItem('smartnutri_admin_pw') || pwMemory; } catch (e) { return pwMemory; }
+        }
+        function setPassword(pw) {
+            pwMemory = pw;
+            try { pw ? sessionStorage.setItem('smartnutri_admin_pw', pw) : sessionStorage.removeItem('smartnutri_admin_pw'); } catch (e) {}
+        }
 
-            // Lấy danh sách cũ, thêm đơn mới lên đầu và hiển thị
-            const saved = JSON.parse(localStorage.getItem('smartnutri_all_orders') || '[]');
-            renderOrders(saved, orderData.orderId);
-        };
+        function showLogin(msg) {
+            clearInterval(timer);
+            document.getElementById('login-err').textContent = msg || '';
+            document.getElementById('login-box').classList.remove('hidden');
+            document.getElementById('login-pw').value = '';
+            document.getElementById('login-pw').focus();
+        }
 
-        function renderOrders(orders, latestId = null) {
+        function submitLogin(e) {
+            e.preventDefault();
+            const pw = document.getElementById('login-pw').value;
+            if (!pw) return;
+            setPassword(pw);
+            document.getElementById('login-box').classList.add('hidden');
+            knownIds = null;
+            loadOrders();
+            clearInterval(timer);
+            timer = setInterval(loadOrders, POLL_MS);
+        }
+
+        function logout() {
+            setPassword('');
+            showLogin();
+        }
+
+        async function api(method) {
+            const pw = getPassword();
+            if (!pw) throw new Error('NEED_LOGIN');
+            const res = await fetch('/api/orders', { method, headers: { 'x-admin-password': pw } });
+            if (res.status === 401) {
+                setPassword('');
+                throw new Error('Sai mật khẩu quản trị.');
+            }
+            if (!res.ok) throw new Error('Lỗi máy chủ (' + res.status + ')');
+            return res.json();
+        }
+
+        async function loadOrders() {
+            try {
+                const orders = await api('GET');
+                statusEl.textContent = '🟢 Đang kết nối (tự cập nhật mỗi 5 giây)';
+                statusEl.className = 'text-emerald-400 font-bold';
+
+                const ids = new Set(orders.map(o => o.id));
+                if (knownIds !== null) {
+                    const fresh = orders.filter(o => !knownIds.has(o.id));
+                    if (fresh.length) {
+                        fresh.forEach(o => highlightIds.add(o.id));
+                        document.getElementById('order-sound').play().catch(() => {});
+                    }
+                }
+                knownIds = ids;
+                renderOrders(orders);
+            } catch (err) {
+                if (err.message === 'NEED_LOGIN') return showLogin();
+                if (err.message.includes('mật khẩu')) return showLogin(err.message);
+                statusEl.textContent = '🔴 ' + err.message;
+                statusEl.className = 'text-rose-400 font-bold';
+            }
+        }
+
+        function renderOrders(orders) {
             document.getElementById('order-count-badge').textContent = `${orders.length} đơn hàng`;
 
             if (orders.length === 0) {
                 container.innerHTML = `
                     <div class="text-center py-16 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500">
                         <p class="text-sm font-bold">Chưa có đơn hàng nào.</p>
-                        <p class="text-xs mt-1">Khi khách hàng nhấn đặt ở trang Đặt Món, thông báo sẽ lập tức nhảy ở đây!</p>
-                    </div>
-                `;
+                        <p class="text-xs mt-1">Khi khách nhấn chốt đơn, đơn sẽ tự hiện ở đây.</p>
+                    </div>`;
                 return;
             }
 
-            container.innerHTML = orders.map(order => {
-                const isNew = order.orderId === latestId;
+            container.innerHTML = orders.map(o => {
+                const isNew = highlightIds.has(o.id);
+                const items = Array.isArray(o.items) ? o.items : [];
+                const time = new Date(o.created_at).toLocaleString('vi-VN');
                 return `
                     <div class="bg-slate-900 border ${isNew ? 'border-2 border-orange-500 new-order-card shadow-2xl shadow-orange-500/20' : 'border-slate-800'} rounded-3xl p-6 transition">
                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-800 gap-2">
                             <div>
                                 <span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                                    Đơn Hàng #${order.orderId}
+                                    Đơn Hàng #${esc(o.id)}
                                 </span>
                                 <h3 class="text-xl font-black text-white mt-2">
-                                    👤 Khách hàng <span class="text-emerald-400 font-black">${order.customerName}</span> vừa chốt đơn!
+                                    👤 Khách hàng <span class="text-emerald-400 font-black">${esc(o.customer_name)}</span> vừa chốt đơn!
                                 </h3>
-                                <p class="text-xs text-slate-400 mt-0.5">SĐT: ${order.customerPhone} | Thể trạng: BMI ${order.profile.bmi} (${order.profile.bmiStatus})</p>
+                                <p class="text-xs text-slate-400 mt-0.5">SĐT: ${esc(o.customer_phone)} | Thể trạng: BMI ${esc(o.bmi ?? '--')} (${esc(o.bmi_status || '--')})</p>
                             </div>
                             <div class="text-left sm:text-right">
                                 <span class="text-xs text-slate-400 font-medium block">⏰ Thời Gian Đặt:</span>
-                                <span class="text-xs font-black text-amber-400">${order.orderedAt}</span>
+                                <span class="text-xs font-black text-amber-400">${esc(time)}</span>
                             </div>
                         </div>
 
-                        <!-- Chi tiết món ăn -->
                         <div class="py-4 space-y-2">
                             <span class="text-xs font-bold text-slate-400 block uppercase">Chi Tiết Món Ăn:</span>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                ${order.items.map(item => `
+                                ${items.map(item => `
                                     <div class="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
-                                        <span class="text-xs font-bold text-slate-200">${item.name}</span>
-                                        <span class="text-xs font-black text-orange-400">x${item.qty} (${item.cals * item.qty} kcal)</span>
-                                    </div>
-                                `).join('')}
+                                        <span class="text-xs font-bold text-slate-200">${esc(item.name)}</span>
+                                        <span class="text-xs font-black text-orange-400">x${esc(item.qty)} (${Number(item.cals * item.qty).toLocaleString()} kcal)</span>
+                                    </div>`).join('')}
                             </div>
                         </div>
 
                         <div class="pt-3 border-t border-slate-800 flex justify-between items-center text-xs font-bold">
                             <span class="text-slate-400">Tổng Calo Khay Ăn:</span>
-                            <span class="text-orange-400 font-extrabold text-sm">${order.totalCals.toLocaleString()} kcal / Mục tiêu: ${order.profile.targetCalories.toLocaleString()} kcal</span>
+                            <span class="text-orange-400 font-extrabold text-sm">${Number(o.total_calories).toLocaleString()} kcal / Mục tiêu: ${Number(o.target_calories_kcal || 0).toLocaleString()} kcal</span>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             }).join('');
         }
 
-        function clearAllOrders() {
-            if (confirm('Bạn có chắc muốn xóa tất cả lịch sử đơn không?')) {
-                localStorage.removeItem('smartnutri_all_orders');
-                loadSavedOrders();
+        let confirmClear = false;
+        async function clearAllOrders() {
+            const btn = document.getElementById('btn-clear');
+            if (!confirmClear) {
+                confirmClear = true;
+                btn.textContent = '⚠️ Bấm lần nữa để xóa hết';
+                setTimeout(() => { confirmClear = false; btn.textContent = '🗑️ Xóa Lịch Sử Đơn'; }, 4000);
+                return;
+            }
+            confirmClear = false;
+            btn.textContent = '🗑️ Xóa Lịch Sử Đơn';
+            try {
+                await api('DELETE');
+                highlightIds.clear();
+                knownIds = new Set();
+                loadOrders();
+            } catch (err) {
+                alert(err.message);
             }
         }
 
-        // Tải danh sách đơn hàng khi mở trang Admin
-        loadSavedOrders();
+        loadOrders();
+        timer = setInterval(loadOrders, POLL_MS);
     </script>
 </body>
 </html>
