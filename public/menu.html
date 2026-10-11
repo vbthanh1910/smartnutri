@@ -501,6 +501,7 @@
             if (cartTotals().qty === 0) return;
             document.getElementById('order-error').textContent = '';
             document.getElementById('cart-modal').classList.remove('hidden');
+            prefetchThanks();
         }
         function closeCart() { document.getElementById('cart-modal').classList.add('hidden'); }
 
@@ -691,8 +692,7 @@
                 (linked ? 'Bạn có thể theo dõi tiến độ tại mục "Đơn của tôi".' : 'Đăng nhập ở trang chính để theo dõi tiến độ các đơn sau.');
             document.getElementById('thanks-link').classList.toggle('hidden', !linked);
             document.getElementById('thanks-modal').classList.remove('hidden');
-            // Không đưa tên khách vào lời đọc để không gửi thông tin cá nhân tới Gemini
-            thanksText = 'Đặt hàng thành công. Đơn số ' + id + '. Cảm ơn bạn đã đặt món.';
+            thanksText = THANKS_TEXT; // câu cố định, không chứa tên hay mã đơn
             updateThanksSpeakBtn();
             if (thanksSpeakOn()) speakThanks(thanksText);
         }
@@ -706,14 +706,49 @@
         const thanksCanSpeak = 'speechSynthesis' in window && 'SpeechSynthesisUtterance' in window;
         let thanksText = '';
         function thanksSpeakOn() { return lsGet(K_SPEAK_THANKS) !== 'off'; } // mặc định bật
-        let thanksAudio = null, thanksSeq = 0, thanksAbort = null;
-        const thanksCache = new Map(); // "giọng|nội dung" -> URL âm thanh
+        // Câu đọc cố định: nên âm thanh chỉ cần tạo một lần, tải sẵn từ trước khi khách bấm "Chốt đơn"
+        const THANKS_TEXT = 'Đặt hàng thành công. Cảm ơn bạn đã đặt món!';
+        let thanksAudio = null, thanksSeq = 0;
+        const thanksCache = new Map(); // "giọng|nội dung" -> Promise<URL âm thanh>
 
         function stopThanksSpeak() {
-            thanksSeq++; // hủy mọi yêu cầu đang chờ
-            if (thanksAbort) { thanksAbort.abort(); thanksAbort = null; }
+            thanksSeq++; // hủy lượt phát đang chờ
             if (thanksAudio) { thanksAudio.pause(); thanksAudio = null; }
             if (thanksCanSpeak) speechSynthesis.cancel();
+        }
+
+        function thanksVoice() {
+            const s = lsGet('smartnutri_voice'); // giọng khách đã chọn ở trang chính
+            return s.startsWith('gemini:') ? s.slice(7) : 'Kore';
+        }
+
+        // Tải âm thanh từ server (có lưu tạm trong trang, lỗi thì lần sau thử lại)
+        function loadThanksAudio(text, voice) {
+            const key = voice + '|' + text;
+            if (!thanksCache.has(key)) {
+                const p = (async () => {
+                    const ctrl = new AbortController();
+                    const timer = setTimeout(() => ctrl.abort(), 40000);
+                    try {
+                        const res = await fetch('/api/tts', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text, voice }),
+                            signal: ctrl.signal
+                        });
+                        if (!res.ok) throw new Error('tts ' + res.status);
+                        return URL.createObjectURL(await res.blob());
+                    } finally { clearTimeout(timer); }
+                })();
+                p.catch(() => thanksCache.delete(key));
+                thanksCache.set(key, p);
+            }
+            return thanksCache.get(key);
+        }
+
+        // Gọi khi khách mở khay ăn để âm thanh sẵn sàng trước lúc chốt đơn
+        function prefetchThanks() {
+            if (thanksSpeakOn()) loadThanksAudio(THANKS_TEXT, thanksVoice()).catch(() => {});
         }
 
         // Dự phòng: giọng của trình duyệt khi Gemini lỗi hoặc quá chậm
@@ -731,26 +766,8 @@
             if (!text) return;
             stopThanksSpeak();
             const seq = thanksSeq;
-            const saved = lsGet('smartnutri_voice');
-            const voice = saved.startsWith('gemini:') ? saved.slice(7) : 'Kore';
-            const key = voice + '|' + text;
             try {
-                let url = thanksCache.get(key);
-                if (!url) {
-                    thanksAbort = new AbortController();
-                    const timer = setTimeout(() => thanksAbort && thanksAbort.abort(), 40000);
-                    try {
-                        const res = await fetch('/api/tts', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text, voice }),
-                            signal: thanksAbort.signal
-                        });
-                        if (!res.ok) throw new Error('tts ' + res.status);
-                        url = URL.createObjectURL(await res.blob());
-                        thanksCache.set(key, url);
-                    } finally { clearTimeout(timer); }
-                }
+                const url = await loadThanksAudio(text, thanksVoice()); // đã tải sẵn thì có ngay
                 if (seq !== thanksSeq) return; // đã đóng cửa sổ hoặc tắt tiếng
                 thanksAudio = new Audio(url);
                 thanksAudio.onended = () => { thanksAudio = null; };
@@ -768,7 +785,7 @@
             const on = !thanksSpeakOn();
             lsSet(K_SPEAK_THANKS, on ? 'on' : 'off');
             updateThanksSpeakBtn();
-            on ? speakThanks(thanksText) : stopThanksSpeak();
+            on ? speakThanks(thanksText || THANKS_TEXT) : stopThanksSpeak();
         }
 
         // ---------- Chốt đơn ----------

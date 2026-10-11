@@ -489,6 +489,8 @@ const TTS_MODEL = (process.env.GEMINI_TTS_MODEL || 'gemini-3.8-flash-tts').trim(
 const TTS_FALLBACK = (process.env.GEMINI_TTS_FALLBACK_MODEL || 'gemini-3.1-flash-tts-preview').trim();
 const TTS_VOICES = new Set(['Kore', 'Puck', 'Charon', 'Aoede']);
 const ttsLimiter = makeLimiter(10, 'Bạn yêu cầu đọc quá nhanh, vui lòng thử lại sau 1 phút.');
+// Lưu tạm âm thanh đã tạo (câu cố định chỉ gọi Gemini một lần cho mỗi giọng, mất khi server khởi động lại)
+const ttsCache = new Map();
 
 // Gemini trả PCM 16-bit mono thô; bọc thêm header WAV để trình duyệt phát được
 function pcmToWav(pcm, rate) {
@@ -512,6 +514,13 @@ app.post('/api/tts', ttsLimiter, wrap(async (req, res) => {
         .slice(0, 1200);
     if (!text) return res.status(400).json({ status: 'error', message: 'Không có nội dung để đọc.' });
     const voice = TTS_VOICES.has(b.voice) ? b.voice : 'Kore';
+
+    const cacheKey = voice + '|' + text;
+    const cached = ttsCache.get(cacheKey);
+    if (cached) {
+        res.set('Content-Type', 'audio/wav');
+        return res.send(cached);
+    }
 
     const body = {
         contents: [{ parts: [{ text }] }],
@@ -545,6 +554,8 @@ app.post('/api/tts', ttsLimiter, wrap(async (req, res) => {
     const out = /wav/i.test(mime) ? bytes : pcmToWav(bytes, rate);
 
     console.log(`[GEMINI] TTS ${result.model} (${voice}) xong sau ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
+    if (ttsCache.size >= 50) ttsCache.delete(ttsCache.keys().next().value); // giữ tối đa 50 đoạn
+    ttsCache.set(cacheKey, out);
     res.set('Content-Type', 'audio/wav');
     res.send(out);
 }));
