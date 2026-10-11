@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thực Đơn Đầy Đủ - SmartNutri Eats</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        food: { 50: '#fff7ed', 100: '#ffedd5', 500: '#f97316', 600: '#ea580c', 700: '#c2410c' }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+        .food-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .food-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(234, 88, 12, 0.15); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen pb-28">
+
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <header class="bg-white sticky top-0 z-40 border-b border-slate-200 shadow-sm">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <a href="index.html" class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-2xl bg-food-600 flex items-center justify-center text-white shadow-md shadow-food-500/20">🍔</div>
+                <span class="text-xl font-black text-slate-900">SmartNutri <span class="text-food-600">Eats</span></span>
+            </a>
+            <div class="flex items-center gap-2">
+                <a id="link-orders" href="orders.html" class="hidden px-3 py-2 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 rounded-xl text-xs font-bold transition whitespace-nowrap">📦 Đơn của tôi</a>
+                <a href="index.html" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition whitespace-nowrap">← Tính BMI</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8 w-full">
+
+        <div class="mb-6">
+            <h1 class="text-2xl font-black text-slate-900">Thực Đơn Đầy Đủ</h1>
+            <p class="text-xs text-slate-500 mt-1">Chọn món theo sở thích rồi chốt đơn. Giá trị dinh dưỡng là ước tính cho mỗi phần.</p>
+        </div>
+
+        <!-- Gợi ý theo chỉ số -->
+        <div id="profile-banner" class="p-4 rounded-2xl bg-orange-50 border border-orange-200 mb-6 text-xs font-semibold text-orange-900"></div>
+
+        <!-- Gợi ý từ lịch sử đơn hàng -->
+        <section id="suggest-box" class="hidden mb-6 space-y-5">
+            <div id="sg-reorder" class="hidden"></div>
+            <div id="sg-mine" class="hidden"></div>
+            <div id="sg-popular" class="hidden"></div>
+        </section>
+
+        <!-- Tìm kiếm + sắp xếp -->
+        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+            <input id="search" type="search" placeholder="Tìm món ăn..." maxlength="60" class="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold outline-none focus:ring-2 focus:ring-food-500">
+            <select id="sort" class="px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold outline-none focus:ring-2 focus:ring-food-500">
+                <option value="default">Sắp xếp: Mặc định</option>
+                <option value="cal-asc">Calo thấp → cao</option>
+                <option value="cal-desc">Calo cao → thấp</option>
+                <option value="protein-desc">Đạm cao → thấp</option>
+            </select>
+        </div>
+
+        <!-- Danh mục + bộ lọc nhanh -->
+        <div id="cat-chips" class="flex flex-wrap gap-2 mb-3"></div>
+        <div id="quick-filters" class="flex flex-wrap gap-2 mb-6"></div>
+
+        <p id="result-count" class="text-xs font-bold text-slate-500 mb-3"></p>
+        <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+        <p id="empty-msg" class="hidden text-center text-sm font-semibold text-slate-400 py-16">Không tìm thấy món phù hợp. Thử bỏ bớt bộ lọc nhé.</p>
+    </main>
+
+    <!-- Thanh giỏ hàng nổi -->
+    <div id="floating-cart" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-2xl bg-slate-900/95 backdrop-blur-md text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="openCart()">
+            <div class="relative w-10 h-10 rounded-xl bg-food-600 flex items-center justify-center font-black shrink-0">
+                🛒
+                <span id="cart-badge" class="absolute -top-1.5 -right-1.5 bg-white text-food-600 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">0</span>
+            </div>
+            <div>
+                <div class="flex items-baseline gap-2">
+                    <span id="cart-cals" class="text-base sm:text-lg font-black text-food-500">0</span>
+                    <span id="cart-target-wrap" class="text-xs text-slate-400 hidden">/ <span id="cart-target">0</span> kcal</span>
+                    <span id="cart-kcal-unit" class="text-xs text-slate-400">kcal</span>
+                </div>
+                <p id="cart-sub" class="text-xs text-slate-300">Bấm để xem khay ăn</p>
+            </div>
+        </div>
+        <button onclick="openCart()" class="px-4 py-2.5 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition">Xem Khay & Chốt Đơn</button>
+    </div>
+
+    <!-- Modal khay ăn + thông tin đặt hàng -->
+    <div id="cart-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto custom-scrollbar">
+            <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <h3 class="font-extrabold text-slate-900 text-base">🛒 Khay Ăn Của Bạn</h3>
+                <button onclick="closeCart()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500 text-lg leading-none">✕</button>
+            </div>
+
+            <div id="modal-items" class="py-3 max-h-48 overflow-y-auto custom-scrollbar space-y-2 shrink-0"></div>
+
+            <!-- Gợi ý thứ tự ăn -->
+            <div id="eat-order" class="hidden mb-3 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 shrink-0">
+                <p class="text-xs font-extrabold text-emerald-900 mb-2">🥢 Gợi ý thứ tự ăn trong đơn</p>
+                <ol id="eat-order-list" class="space-y-1.5"></ol>
+                <p class="text-[10px] text-emerald-700 mt-2">Gợi ý mang tính tham khảo, bạn có thể ăn theo sở thích.</p>
+            </div>
+
+            <div class="pt-3 border-t border-slate-100 space-y-3">
+                <div class="flex justify-between items-center text-sm font-extrabold text-slate-900">
+                    <span>Tổng calo:</span>
+                    <span id="modal-total" class="text-food-600 text-lg">0 kcal</span>
+                </div>
+                <div id="modal-target-row" class="hidden flex justify-between items-center text-xs font-bold text-slate-600">
+                    <span>Calo mục tiêu mỗi ngày:</span>
+                    <span id="modal-target" class="text-slate-900 font-extrabold">0 kcal</span>
+                </div>
+
+                <div class="grid grid-cols-1 gap-2 pt-1">
+                    <input id="order-name" type="text" placeholder="Họ và tên" maxlength="100" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                    <input id="order-phone" type="tel" placeholder="Số điện thoại" maxlength="20" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                </div>
+
+                <!-- Ghi chú cho bếp / admin -->
+                <div class="p-3.5 rounded-2xl bg-orange-50/60 border border-orange-200 space-y-3">
+                    <p class="text-xs font-extrabold text-slate-900">📝 Ghi chú cho bếp</p>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">🌶️ Độ cay</label>
+                        <select id="note-spice" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold outline-none focus:ring-2 focus:ring-food-500"></select>
+                    </div>
+
+                    <div>
+                        <span class="block text-[11px] font-bold text-slate-600 mb-1.5">⚠️ Dị ứng / không ăn được</span>
+                        <div id="note-allergies" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+
+                    <div>
+                        <span class="block text-[11px] font-bold text-slate-600 mb-1.5">🧂 Gia vị & cách chế biến</span>
+                        <div id="note-seasoning" class="flex flex-wrap gap-1.5"></div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1">Ghi chú thêm</label>
+                        <textarea id="note-extra" rows="2" maxlength="300" placeholder="Ví dụ: không hành phi, nước sốt để riêng, dị ứng tôm nặng..." class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold outline-none focus:ring-2 focus:ring-food-500 resize-none"></textarea>
+                    </div>
+                </div>
+
+                <p id="order-error" class="text-xs text-rose-600 font-bold min-h-[1rem]"></p>
+
+                <div class="flex gap-2">
+                    <button onclick="clearCart()" class="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">Xóa Hết</button>
+                    <button id="btn-order" onclick="submitOrder()" class="w-2/3 py-3 bg-food-600 hover:bg-food-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-xl transition">Chốt Đơn</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ---------- Dữ liệu món ăn (giá trị dinh dưỡng là ước tính cho 1 phần) ----------
+        const CATEGORIES = [
+            { id: 'main', label: '🍛 Món chính' },
+            { id: 'salad', label: '🥗 Salad & Rau' },
+            { id: 'breakfast', label: '🍳 Bữa sáng' },
+            { id: 'drink', label: '🥤 Đồ uống' },
+            { id: 'snack', label: '🍎 Ăn nhẹ' }
+        ];
+
+        // Mỗi món có emoji dự phòng. Thêm ảnh bằng cách khai báo img, ví dụ:
+        //   img: 'https://.../anh.jpg'   (link ảnh trên mạng)
+        //   img: 'images/com-ga.jpg'     (file ảnh đặt trong thư mục public/images/)
+        // Không có img, hoặc ảnh lỗi/không tải được thì tự dùng lại emoji.
+        const DISHES = [
+            // Món chính
+            { id: '1',   cat: 'main', img: 'images/gao-lut-uc-ga.jpg', name: 'Cơm Gạo Lứt Ức Gà Áp Chảo',        cals: 450, p: 38, c: 45, f: 8 },
+            { id: '3',   cat: 'main', img: 'images/ca-hoi-nuong-mang-tay.jpg', name: 'Cá Hồi Nướng Măng Tây',            cals: 520, p: 35, c: 30, f: 22 },
+            { id: 'm01', cat: 'main', img: 'images/bun-gao-lut-bo-xao-sa.jpg', name: 'Bún Gạo Lứt Bò Xào Sả',             cals: 480, p: 32, c: 52, f: 14 },
+            { id: 'm02', cat: 'main', img: 'images/com-gao-lut-suon-nuong.jpg', name: 'Cơm Gạo Lứt Sườn Nướng Ít Béo',     cals: 540, p: 34, c: 58, f: 16 },
+            { id: 'm03', cat: 'main', img: 'images/pho-ga.jpg', name: 'Phở Gà Ít Bánh',                    cals: 390, p: 30, c: 42, f: 9 },
+            { id: 'm04', cat: 'main', img: 'images/com-gao-lut-dau-hu-sot-nam.jpg', name: 'Cơm Gạo Lứt Đậu Hũ Sốt Nấm',        cals: 410, p: 22, c: 55, f: 12, veg: true },
+            { id: 'm05', cat: 'main', img: 'images/tom-hap-bi-ngoi-va-khoai-lang.jpg', name: 'Tôm Hấp Bí Ngòi & Khoai Lang',      cals: 360, p: 30, c: 38, f: 7 },
+            { id: 'm06', cat: 'main', img: 'images/uc-ga-teriyaki-khoai-tay-nghien.jpg', name: 'Ức Gà Teriyaki Khoai Tây Nghiền',   cals: 500, p: 40, c: 52, f: 12 },
+            { id: 'm07', cat: 'main', img: 'images/ca-basa-ap-chao-rau-cu-hap.jpg', name: 'Cá Basa Áp Chảo Rau Củ Hấp',        cals: 340, p: 28, c: 25, f: 13 },
+            { id: 'm08', cat: 'main', img: 'images/mi-soba-ga-rau-cu.jpg', name: 'Mì Soba Gà Rau Củ',                 cals: 470, p: 33, c: 55, f: 10 },
+            // Salad & Rau
+            { id: '2',   cat: 'salad', img: 'images/salad-bo-my-dau-giam.jpg', name: 'Salad Bò Mỹ Sốt Dầu Giấm',         cals: 380, p: 32, c: 18, f: 14 },
+            { id: 's01', cat: 'salad', img: 'images/salad-uc-ga-quinoa.jpg', name: 'Salad Ức Gà Quinoa',                cals: 360, p: 34, c: 30, f: 10 },
+            { id: 's02', cat: 'salad', img: 'images/salad-tom-bo.jpg', name: 'Salad Tôm Bơ',                      cals: 330, p: 24, c: 16, f: 19 },
+            { id: 's03', cat: 'salad', img: 'images/salad-rau-cu-hat-chia.jpg', name: 'Salad Rau Củ Hạt Chia',             cals: 220, p: 8,  c: 28, f: 9,  veg: true },
+            { id: 's04', cat: 'salad', img: 'images/salad-ca-ngu-trung.jpg', name: 'Salad Cá Ngừ Trứng',                cals: 310, p: 30, c: 12, f: 16 },
+            { id: 's05', cat: 'salad', img: 'images/goi-cuon-tom-thit.jpg', name: 'Gỏi Cuốn Tôm Thịt (4 cuốn)',        cals: 280, p: 20, c: 40, f: 4 },
+            // Bữa sáng
+            { id: 'b01', cat: 'breakfast', img: 'images/yen-mach-sua-hanh-nhan-trai-cay.jpg', name: 'Yến Mạch Sữa Hạnh Nhân Trái Cây',     cals: 320, p: 11, c: 48, f: 9, veg: true },
+            { id: 'b02', cat: 'breakfast', img: 'images/trung-op-la-banh-mi-nguyen-cam-bo.jpg', name: 'Trứng Ốp La Bánh Mì Nguyên Cám Bơ',   cals: 380, p: 18, c: 34, f: 18, veg: true },
+            { id: 'b03', cat: 'breakfast', img: 'images/sandwich-uc-ga-rau-cu.jpg', name: 'Sandwich Ức Gà Rau Củ',               cals: 350, p: 28, c: 36, f: 9 },
+            { id: 'b04', cat: 'breakfast', img: 'images/banh-mi-den-trung-ca-hoi-hun-khoi.jpg', name: 'Bánh Mì Đen Trứng Cá Hồi Hun Khói',   cals: 340, p: 22, c: 30, f: 14 },
+            { id: 'b05', cat: 'breakfast', img: 'images/sua-chua-hy-lap-granola-mat-ong.jpg', name: 'Sữa Chua Hy Lạp Granola Mật Ong',     cals: 290, p: 17, c: 36, f: 8, veg: true },
+            // Đồ uống
+            { id: '4',   cat: 'drink', img: 'images/sinh-to-bo-yen-mach-protein.jpg', name: 'Sinh Tố Bơ Yến Mạch Protein',          cals: 280, p: 15, c: 35, f: 9,  veg: true },
+            { id: 'd01', cat: 'drink', img: 'images/sinh-to-chuoi-bo-dau-phong.jpg', name: 'Sinh Tố Chuối Bơ Đậu Phộng',           cals: 310, p: 12, c: 38, f: 13, veg: true },
+            { id: 'd02', cat: 'drink', img: 'images/nuoc-ep-can-tay-tao.jpg', name: 'Nước Ép Cần Tây Táo',                  cals: 110, p: 2,  c: 26, f: 0,  veg: true },
+            { id: 'd03', cat: 'drink', img: 'images/matcha-latte-sua-hat.jpg', name: 'Matcha Latte Sữa Hạt',                 cals: 120, p: 4,  c: 16, f: 4,  veg: true },
+            { id: 'd04', cat: 'drink', img: 'images/sinh-to-dau-protein.jpg', name: 'Sinh Tố Dâu Protein',                  cals: 240, p: 25, c: 22, f: 5 },
+            // Ăn nhẹ
+            { id: 'n01', cat: 'snack', img: 'images/hat-hon-hop-khong-muoi.jpg', name: 'Hạt Hỗn Hợp Không Muối (30g)',          cals: 180, p: 6,  c: 7,  f: 15, veg: true },
+            { id: 'n02', cat: 'snack', img: 'images/chuoi-nuong-mat-ong-yen-mach.jpg', name: 'Chuối Nướng Mật Ong Yến Mạch',          cals: 200, p: 4,  c: 40, f: 4,  veg: true },
+            { id: 'n03', cat: 'snack', img: 'images/protein-bar-yen-mach.jpg', name: 'Protein Bar Yến Mạch',                  cals: 220, p: 15, c: 22, f: 8 },
+            { id: 'n04', cat: 'snack', img: 'images/trung-luoc.jpg', name: 'Trứng Luộc (2 quả)',                    cals: 140, p: 12, c: 1,  f: 10, veg: true },
+            { id: 'n05', cat: 'snack', img: 'images/sua-chua-trai-cay-tuoi.jpg', name: 'Sữa Chua Trái Cây Tươi',                cals: 150, p: 7,  c: 24, f: 3,  veg: true }
+        ];
+        const BY_ID = Object.fromEntries(DISHES.map(d => [d.id, d]));
+
+        // Trả về thẻ <img> nếu món có ảnh, nếu không thì emoji. Ảnh lỗi sẽ được thay lại bằng emoji.
+        function media(d, imgClass, fallbackClass) {
+            const emoji = d.emoji || '🍽️'; // emoji là tùy chọn
+            if (!d.img) return `<span class="${fallbackClass}">${emoji}</span>`;
+            return `<img src="${d.img}" alt="${d.name}" loading="lazy" class="${imgClass}" data-emoji="${emoji}" data-fb="${fallbackClass}" onerror="imgFail(this)">`;
+        }
+        function imgFail(el) {
+            const span = document.createElement('span');
+            span.className = el.dataset.fb || '';
+            span.textContent = el.dataset.emoji || '🍽️';
+            el.replaceWith(span);
+        }
+
+        // ---------- Lưu trữ cục bộ (có try/catch phòng trình duyệt chặn) ----------
+        const K_TOKEN = 'smartnutri_token', K_PROFILE = 'smartnutri_profile', K_CART = 'smartnutri_menu_cart', K_NOTES = 'smartnutri_notes';
+        function lsGet(k) { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }
+        function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
+        let profile = null;
+        try { profile = JSON.parse(lsGet(K_PROFILE) || 'null'); } catch (e) {}
+        if (!profile || typeof profile !== 'object' || !profile.targetCalories) profile = null;
+
+        let cart = {}; // id -> qty
+        try {
+            const saved = JSON.parse(lsGet(K_CART) || '{}');
+            for (const id in saved) {
+                const q = Number(saved[id]);
+                if (BY_ID[id] && Number.isInteger(q) && q > 0 && q <= 99) cart[id] = q;
+            }
+        } catch (e) {}
+        function persistCart() {
+            lsSet(K_CART, JSON.stringify(cart));
+            // Bản đầy đủ tên + calo để trang chính gửi cho AI nhận xét
+            lsSet('smartnutri_cart_items', JSON.stringify(Object.entries(cart).map(([id, qty]) =>
+                ({ name: BY_ID[id].name, cals: BY_ID[id].cals, qty }))));
+        }
+
+        // ---------- Ghi chú cho bếp (gia vị, độ cay, dị ứng) ----------
+        const SPICE_LEVELS = ['Không cay', 'Cay nhẹ', 'Cay vừa', 'Cay nhiều'];
+        const ALLERGY_OPTIONS = ['Hải sản / tôm cua', 'Đậu phộng', 'Các loại hạt', 'Sữa / lactose', 'Trứng', 'Gluten / lúa mì', 'Đậu nành'];
+        const SEASONING_OPTIONS = ['Ít muối', 'Ít đường', 'Ít dầu mỡ', 'Không nước mắm', 'Không hành', 'Không tỏi', 'Không rau mùi', 'Sốt để riêng'];
+
+        function renderNoteChips(boxId, options, name, checkedColor) {
+            document.getElementById(boxId).innerHTML = options.map(o => `
+                <label class="cursor-pointer">
+                    <input type="checkbox" name="${name}" value="${o}" class="peer sr-only">
+                    <span class="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border border-slate-200 bg-white text-slate-600 transition peer-checked:${checkedColor} peer-checked:text-white peer-checked:border-transparent peer-focus-visible:ring-2 peer-focus-visible:ring-food-500">${o}</span>
+                </label>`).join('');
+        }
+
+        function initNotes() {
+            document.getElementById('note-spice').innerHTML = SPICE_LEVELS.map(s => `<option value="${s}">${s}</option>`).join('');
+            renderNoteChips('note-allergies', ALLERGY_OPTIONS, 'note-allergy', 'bg-rose-600');
+            renderNoteChips('note-seasoning', SEASONING_OPTIONS, 'note-seasoning', 'bg-food-600');
+
+            // Khôi phục lựa chọn lần trước (dị ứng thường không đổi)
+            try {
+                const saved = JSON.parse(lsGet(K_NOTES) || 'null');
+                if (saved && typeof saved === 'object') {
+                    if (SPICE_LEVELS.includes(saved.spice)) document.getElementById('note-spice').value = saved.spice;
+                    const setChecked = (name, arr) => document.querySelectorAll(`input[name="${name}"]`).forEach(i => { i.checked = Array.isArray(arr) && arr.includes(i.value); });
+                    setChecked('note-allergy', saved.allergies);
+                    setChecked('note-seasoning', saved.seasoning);
+                }
+            } catch (e) {}
+        }
+
+        function collectNotes() {
+            const checked = name => [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(i => i.value);
+            return {
+                spice: document.getElementById('note-spice').value,
+                allergies: checked('note-allergy'),
+                seasoning: checked('note-seasoning'),
+                extra: document.getElementById('note-extra').value.trim().slice(0, 300)
+            };
+        }
+
+        // ---------- Trạng thái bộ lọc ----------
+        const state = { cat: 'all', quick: new Set(), search: '', sort: 'default' };
+        const QUICK = [
+            { id: 'protein', label: '💪 Giàu đạm (≥30g)', test: d => d.p >= 30 },
+            { id: 'low', label: '🔥 Ít calo (≤350)', test: d => d.cals <= 350 },
+            { id: 'veg', label: '🌱 Món chay', test: d => !!d.veg }
+        ];
+        const perMeal = () => profile ? Math.round(profile.targetCalories / 3) : 0;
+
+        function renderFilters() {
+            const chips = [{ id: 'all', label: 'Tất cả' }, ...CATEGORIES];
+            document.getElementById('cat-chips').innerHTML = chips.map(c => `
+                <button onclick="setCat('${c.id}')" class="px-3.5 py-2 rounded-full text-xs font-extrabold border transition ${state.cat === c.id ? 'bg-food-600 text-white border-food-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'}">${c.label}</button>
+            `).join('');
+            document.getElementById('quick-filters').innerHTML = QUICK.map(q => `
+                <button onclick="toggleQuick('${q.id}')" class="px-3 py-1.5 rounded-full text-[11px] font-bold border transition ${state.quick.has(q.id) ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">${q.label}</button>
+            `).join('');
+        }
+        function setCat(id) { state.cat = id; renderFilters(); renderMenu(); }
+        function toggleQuick(id) { state.quick.has(id) ? state.quick.delete(id) : state.quick.add(id); renderFilters(); renderMenu(); }
+
+        function visibleDishes() {
+            const q = state.search.trim().toLowerCase();
+            let list = DISHES.filter(d =>
+                (state.cat === 'all' || d.cat === state.cat) &&
+                [...state.quick].every(id => QUICK.find(x => x.id === id).test(d)) &&
+                (!q || d.name.toLowerCase().includes(q))
+            );
+            if (state.sort === 'cal-asc') list.sort((a, b) => a.cals - b.cals);
+            else if (state.sort === 'cal-desc') list.sort((a, b) => b.cals - a.cals);
+            else if (state.sort === 'protein-desc') list.sort((a, b) => b.p - a.p);
+            return list;
+        }
+
+        function renderMenu() {
+            const list = visibleDishes();
+            const meal = perMeal();
+            document.getElementById('result-count').textContent = `${list.length} món`;
+            document.getElementById('empty-msg').classList.toggle('hidden', list.length > 0);
+            document.getElementById('menu-grid').innerHTML = list.map(d => {
+                const qty = cart[d.id] || 0;
+                const fits = meal && d.cals <= meal;
+                const badges = [
+                    d.p >= 30 ? '<span class="bg-amber-100 text-amber-700">Giàu đạm</span>' : '',
+                    d.cals <= 350 ? '<span class="bg-emerald-100 text-emerald-700">Ít calo</span>' : '',
+                    d.veg ? '<span class="bg-lime-100 text-lime-700">Chay</span>' : '',
+                    fits ? '<span class="bg-food-100 text-food-700">Hợp 1 bữa</span>' : ''
+                ].join('');
+                return `
+                <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden food-card flex flex-col justify-between p-4">
+                    <div>
+                        <div class="relative h-36 w-full overflow-hidden rounded-2xl bg-gradient-to-br from-food-50 to-food-100 flex items-center justify-center mb-3">
+                            ${media(d, 'w-full h-full object-cover', 'text-6xl')}
+                            <span class="absolute bottom-2 right-2 bg-food-600 text-white text-xs font-black px-2.5 py-1 rounded-xl shadow-md">${d.cals} kcal</span>
+                        </div>
+                        <h4 class="font-extrabold text-slate-900 text-sm mb-1">${d.name}</h4>
+                        <p class="text-[11px] font-bold text-slate-500 mb-2">P: ${d.p}g | C: ${d.c}g | F: ${d.f}g</p>
+                        <div class="flex flex-wrap gap-1 mb-3 text-[10px] font-extrabold [&>span]:px-2 [&>span]:py-0.5 [&>span]:rounded-full">${badges}</div>
+                    </div>
+                    ${qty === 0 ? `
+                        <button onclick="changeQty('${d.id}', 1)" class="w-full py-2.5 bg-food-50 hover:bg-food-100 text-food-700 font-extrabold text-xs rounded-xl transition border border-food-200">+ Thêm Vào Khay</button>
+                    ` : `
+                        <div class="flex items-center justify-between bg-food-600 text-white rounded-xl px-2 py-1.5">
+                            <button onclick="changeQty('${d.id}', -1)" class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 font-black">−</button>
+                            <span class="text-sm font-black">${qty}</span>
+                            <button onclick="changeQty('${d.id}', 1)" class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 font-black">+</button>
+                        </div>
+                    `}
+                </div>`;
+            }).join('');
+        }
+
+        // ---------- Gợi ý thứ tự ăn ----------
+        // Rau/salad trước (chất xơ giúp no sớm) -> món chính -> ăn nhẹ -> đồ uống
+        const EAT_RANK = { salad: 1, main: 2, breakfast: 2, snack: 3, drink: 4 };
+        const EAT_HINT = {
+            1: 'Rau & salad: nhiều chất xơ, ăn trước giúp no sớm và đỡ ăn dư tinh bột.',
+            2: 'Món chính: ăn phần đạm và rau trước, tinh bột sau.',
+            3: 'Ăn nhẹ: dùng cuối bữa hoặc làm bữa phụ.',
+            4: 'Đồ uống: nên uống sau để không bị no sớm.'
+        };
+        function eatOrder(list) {
+            return list
+                .filter(i => EAT_RANK[i.cat])
+                .map((i, idx) => ({ ...i, idx }))
+                .sort((a, b) => EAT_RANK[a.cat] - EAT_RANK[b.cat] || a.idx - b.idx);
+        }
+        function renderEatOrder() {
+            const box = document.getElementById('eat-order');
+            const sorted = eatOrder(Object.entries(cart).map(([id, qty]) => ({ name: BY_ID[id].name, cat: BY_ID[id].cat, qty })));
+            box.classList.toggle('hidden', sorted.length < 2);
+            if (sorted.length < 2) return;
+            let lastRank = 0;
+            document.getElementById('eat-order-list').innerHTML = sorted.map((d, i) => {
+                const rank = EAT_RANK[d.cat];
+                const hint = rank !== lastRank ? `<p class="text-[10px] text-emerald-700 font-medium ml-6">${EAT_HINT[rank]}</p>` : '';
+                lastRank = rank;
+                return `
+                    <li>
+                        <div class="flex items-start gap-2 text-[11px] font-bold text-emerald-900">
+                            <span class="w-4 h-4 shrink-0 rounded-full bg-emerald-600 text-white text-[10px] font-black flex items-center justify-center mt-px">${i + 1}</span>
+                            <span>${d.name} <span class="text-emerald-600">x${d.qty}</span>${i === 0 ? ' <span class="px-1.5 py-0.5 rounded-full bg-emerald-600 text-white text-[9px] font-black">Ăn đầu tiên</span>' : ''}</span>
+                        </div>
+                        ${hint}
+                    </li>`;
+            }).join('');
+        }
+
+        // ---------- Giỏ hàng ----------
+        function changeQty(id, delta) {
+            if (!BY_ID[id]) return;
+            const next = (cart[id] || 0) + delta;
+            if (next <= 0) delete cart[id];
+            else if (next <= 99) {
+                if (!(id in cart) && Object.keys(cart).length >= 50) return toast('Khay ăn tối đa 50 loại món.');
+                cart[id] = next;
+            }
+            persistCart();
+            renderMenu();
+            renderCart();
+        }
+
+        function clearCart() { cart = {}; persistCart(); renderMenu(); renderCart(); }
+
+        const cartTotals = () => Object.entries(cart).reduce((t, [id, q]) => {
+            t.cals += BY_ID[id].cals * q; t.qty += q; return t;
+        }, { cals: 0, qty: 0 });
+
+        function renderCart() {
+            const t = cartTotals();
+            document.getElementById('floating-cart').classList.toggle('hidden', t.qty === 0);
+            document.getElementById('cart-badge').textContent = t.qty;
+            document.getElementById('cart-cals').textContent = t.cals.toLocaleString();
+            document.getElementById('cart-sub').textContent = `Đã chọn ${t.qty} món`;
+            const hasTarget = !!profile;
+            document.getElementById('cart-target-wrap').classList.toggle('hidden', !hasTarget);
+            document.getElementById('cart-kcal-unit').classList.toggle('hidden', hasTarget);
+            if (hasTarget) document.getElementById('cart-target').textContent = profile.targetCalories.toLocaleString();
+
+            document.getElementById('modal-total').textContent = t.cals.toLocaleString() + ' kcal';
+            document.getElementById('modal-target-row').classList.toggle('hidden', !hasTarget);
+            if (hasTarget) document.getElementById('modal-target').textContent = profile.targetCalories.toLocaleString() + ' kcal';
+
+            const ids = Object.keys(cart);
+            document.getElementById('modal-items').innerHTML = ids.length === 0
+                ? '<p class="text-center text-xs font-semibold text-slate-400 py-8">Khay ăn đang trống</p>'
+                : ids.map(id => {
+                    const d = BY_ID[id], q = cart[id];
+                    return `
+                    <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-2xl border border-slate-100">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-11 h-11 rounded-xl overflow-hidden bg-food-50 flex items-center justify-center shrink-0">${media(d, 'w-full h-full object-cover', 'text-2xl')}</div>
+                            <div class="min-w-0">
+                                <h5 class="text-xs font-extrabold text-slate-900 truncate">${d.name}</h5>
+                                <span class="text-[11px] text-food-600 font-bold">${(d.cals * q).toLocaleString()} kcal</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <button onclick="changeQty('${id}', -1)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-xs hover:bg-slate-100">-</button>
+                            <span class="text-xs font-extrabold w-4 text-center">${q}</span>
+                            <button onclick="changeQty('${id}', 1)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-xs hover:bg-slate-100">+</button>
+                        </div>
+                    </div>`;
+                }).join('');
+
+            renderEatOrder();
+            if (t.qty === 0) closeCart();
+        }
+
+        function openCart() {
+            if (cartTotals().qty === 0) return;
+            document.getElementById('order-error').textContent = '';
+            document.getElementById('cart-modal').classList.remove('hidden');
+        }
+        function closeCart() { document.getElementById('cart-modal').classList.add('hidden'); }
+
+        // ---------- Tài khoản (nếu đã đăng nhập ở trang chính) ----------
+        let token = lsGet(K_TOKEN);
+        const authHeaders = () => token ? { Authorization: 'Bearer ' + token } : {};
+
+        async function initAccount() {
+            const nameEl = document.getElementById('order-name');
+            const phoneEl = document.getElementById('order-phone');
+            if (profile) { nameEl.value = profile.name || ''; phoneEl.value = profile.phone || ''; }
+            if (!token) return;
+            try {
+                const res = await fetch('/api/me', { headers: authHeaders() });
+                if (!res.ok) { token = ''; return; }
+                const c = (await res.json()).customer;
+                nameEl.value = c.full_name || nameEl.value;
+                phoneEl.value = c.phone || phoneEl.value;
+                document.getElementById('link-orders').classList.remove('hidden');
+            } catch (e) {}
+        }
+
+        function renderBanner() {
+            const el = document.getElementById('profile-banner');
+            if (profile) {
+                el.innerHTML = `Mục tiêu của bạn: <strong>${Number(profile.targetCalories).toLocaleString()} kcal/ngày</strong> (BMI ${profile.bmi}). Món có nhãn <strong>"Hợp 1 bữa"</strong> có calo không vượt khoảng <strong>${perMeal()} kcal</strong> (một phần ba mục tiêu).`;
+            } else {
+                el.innerHTML = `Chưa có chỉ số cơ thể. <a href="index.html" class="underline font-extrabold">Nhập chỉ số tại trang chính</a> để thấy gợi ý "Hợp 1 bữa" và đơn của bạn lưu kèm thông tin dinh dưỡng.`;
+            }
+        }
+
+        // ---------- Gợi ý từ lịch sử đơn hàng (lấy từ database qua /api/suggestions) ----------
+        let suggestData = null;
+
+        function sgCard(d, sub) {
+            const meal = perMeal();
+            const fits = meal && d.cals <= meal;
+            return `
+                <div class="w-40 shrink-0 bg-white rounded-2xl border border-slate-200 p-2.5 flex flex-col justify-between">
+                    <div>
+                        <div class="h-20 w-full rounded-xl overflow-hidden bg-gradient-to-br from-food-50 to-food-100 flex items-center justify-center mb-2">${media(d, 'w-full h-full object-cover', 'text-4xl')}</div>
+                        <h5 class="text-[11px] font-extrabold text-slate-900 leading-snug mb-0.5">${d.name}</h5>
+                        <p class="text-[10px] font-bold text-slate-500">${d.cals} kcal · P ${d.p}g</p>
+                        <p class="text-[10px] font-bold text-food-600">${sub}</p>
+                        ${fits ? '<span class="inline-block mt-1 px-1.5 py-0.5 rounded-full bg-food-100 text-food-700 text-[9px] font-extrabold">Hợp 1 bữa</span>' : ''}
+                    </div>
+                    <button onclick="changeQty('${d.id}', 1)" class="mt-2 w-full py-1.5 bg-food-50 hover:bg-food-100 text-food-700 font-extrabold text-[11px] rounded-lg transition border border-food-200">+ Thêm</button>
+                </div>`;
+        }
+
+        function sgRow(boxId, title, cards) {
+            const box = document.getElementById(boxId);
+            box.classList.toggle('hidden', cards.length === 0);
+            if (!cards.length) return;
+            box.innerHTML = `
+                <h3 class="text-sm font-extrabold text-slate-900 mb-2">${title}</h3>
+                <div class="flex gap-3 overflow-x-auto custom-scrollbar pb-2">${cards.join('')}</div>`;
+        }
+
+        function renderSuggestions() {
+            if (!suggestData) return;
+            const valid = arr => (Array.isArray(arr) ? arr : []).filter(x => x && BY_ID[x.id]); // bỏ món đã không còn trong thực đơn
+            const mine = valid(suggestData.mine).slice(0, 8);
+            const popular = valid(suggestData.popular).slice(0, 8);
+            const last = valid(suggestData.last);
+
+            sgRow('sg-mine', '⭐ Món bạn hay đặt', mine.map(x => sgCard(BY_ID[x.id], `Bạn đã đặt ${Number(x.orders)} lần`)));
+            sgRow('sg-popular', '🔥 Được nhiều khách đặt nhất', popular.map(x => sgCard(BY_ID[x.id], `${Number(x.orders)} đơn gần đây`)));
+
+            const rb = document.getElementById('sg-reorder');
+            rb.classList.toggle('hidden', last.length === 0);
+            if (last.length) {
+                rb.innerHTML = `
+                    <div class="p-3.5 rounded-2xl bg-slate-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <p class="text-xs font-extrabold">🔁 Đặt lại đơn gần nhất của bạn</p>
+                            <p class="text-[11px] text-slate-300 mt-0.5">${last.map(i => `${BY_ID[i.id].name} x${Number(i.qty)}`).join(', ')}</p>
+                        </div>
+                        <button onclick="reorderLast()" class="px-4 py-2.5 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition whitespace-nowrap">Thêm cả đơn vào khay</button>
+                    </div>`;
+            }
+            document.getElementById('suggest-box').classList.toggle('hidden', !(mine.length || popular.length || last.length));
+        }
+
+        function reorderLast() {
+            if (!suggestData) return;
+            for (const i of (suggestData.last || [])) {
+                if (!BY_ID[i.id]) continue;
+                if (!(i.id in cart) && Object.keys(cart).length >= 50) break;
+                cart[i.id] = Math.min(99, (cart[i.id] || 0) + (Math.min(99, Number(i.qty)) || 1));
+            }
+            persistCart(); renderMenu(); renderCart();
+            toast('Đã thêm đơn gần nhất vào khay ăn.');
+        }
+
+        async function loadSuggestions() {
+            try {
+                const res = await fetch('/api/suggestions', { headers: authHeaders() });
+                if (!res.ok) return; // lỗi thì cứ ẩn phần gợi ý, không ảnh hưởng việc đặt món
+                suggestData = await res.json();
+                renderSuggestions();
+            } catch (e) {}
+        }
+
+        // ---------- Chốt đơn ----------
+        let sending = false;
+        async function submitOrder() {
+            if (sending) return;
+            const errEl = document.getElementById('order-error');
+            errEl.textContent = '';
+            const name = document.getElementById('order-name').value.trim();
+            const phone = document.getElementById('order-phone').value.trim();
+            if (!name) return errEl.textContent = 'Vui lòng nhập họ tên.';
+            if (!/^[0-9+\s.-]{8,20}$/.test(phone)) return errEl.textContent = 'Số điện thoại không hợp lệ (8-20 ký tự).';
+            const items = Object.entries(cart).map(([id, qty]) => ({ id, name: BY_ID[id].name, cals: BY_ID[id].cals, qty, cat: BY_ID[id].cat }));
+            if (!items.length) return errEl.textContent = 'Khay ăn đang trống.';
+
+            const notes = collectNotes();
+            // Nhớ lựa chọn (trừ ghi chú thêm) cho lần đặt sau
+            lsSet(K_NOTES, JSON.stringify({ spice: notes.spice, allergies: notes.allergies, seasoning: notes.seasoning }));
+
+            const btn = document.getElementById('btn-order');
+            sending = true; btn.disabled = true; btn.textContent = 'Đang gửi...';
+            try {
+                const res = await fetch('/api/orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify({ customerName: name, customerPhone: phone, profile: profile || {}, items, notes })
+                });
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) throw new Error(data.message || 'Không gửi được đơn, vui lòng thử lại.');
+                cart = {}; persistCart(); renderMenu(); renderCart(); closeCart();
+                document.getElementById('note-extra').value = '';
+                alert('🎉 Đã chốt đơn #' + data.id + ' thành công! Cảm ơn bạn ' + name + '.' +
+                    (data.linked ? '\nBạn có thể theo dõi tiến độ tại mục "Đơn của tôi".' : '\nĐăng nhập ở trang chính để theo dõi tiến độ các đơn sau.'));
+            } catch (err) {
+                errEl.textContent = err.message;
+            } finally {
+                sending = false; btn.disabled = false; btn.textContent = 'Chốt Đơn';
+            }
+        }
+
+        function toast(msg) {
+            const box = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = 'bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl font-semibold text-xs pointer-events-auto border border-slate-700';
+            t.textContent = msg;
+            box.appendChild(t);
+            setTimeout(() => t.remove(), 2500);
+        }
+
+        // ---------- Khởi tạo ----------
+        document.getElementById('search').addEventListener('input', e => { state.search = e.target.value; renderMenu(); });
+        document.getElementById('sort').addEventListener('change', e => { state.sort = e.target.value; renderMenu(); });
+        document.getElementById('cart-modal').addEventListener('click', e => { if (e.target.id === 'cart-modal') closeCart(); });
+
+        initNotes();
+        renderBanner();
+        renderFilters();
+        renderMenu();
+        renderCart();
+        initAccount().finally(loadSuggestions); // chờ biết đã đăng nhập hay chưa rồi mới lấy gợi ý
+    </script>
+</body>
+</html>

@@ -84,6 +84,25 @@ function num(v, min, max) {
     return Number.isFinite(n) && n >= min && n <= max ? n : null;
 }
 
+// Làm sạch ghi chú của khách (độ cay, dị ứng, gia vị): không tin dữ liệu client gửi lên
+function cleanList(arr, maxItems, maxLen) {
+    if (!Array.isArray(arr)) return [];
+    return arr.slice(0, maxItems)
+        .map(s => String(s || '').replace(/[\r\n]+/g, ' ').trim().slice(0, maxLen))
+        .filter(Boolean);
+}
+function cleanNotes(n) {
+    if (!n || typeof n !== 'object') return null;
+    const notes = {
+        spice: String(n.spice || '').trim().slice(0, 20),
+        allergies: cleanList(n.allergies, 10, 40),
+        seasoning: cleanList(n.seasoning, 12, 40),
+        extra: String(n.extra || '').trim().slice(0, 300)
+    };
+    const empty = !notes.spice && !notes.allergies.length && !notes.seasoning.length && !notes.extra;
+    return empty ? null : notes;
+}
+
 // ---------- Tài khoản khách hàng ----------
 async function hashPassword(pw) {
     const salt = crypto.randomBytes(16);
@@ -217,7 +236,7 @@ app.get('/api/me', requireCustomer, (req, res) => {
 app.get('/api/my-orders', requireCustomer, wrap(async (req, res) => {
     const { data, error } = await supabase
         .from('orders')
-        .select('id, created_at, status, preparing_at, completed_at, total_calories, target_calories_kcal, items')
+        .select('id, created_at, status, preparing_at, completed_at, total_calories, target_calories_kcal, items, notes')
         .eq('customer_id', req.customer.id)
         .order('created_at', { ascending: false })
         .limit(100);
@@ -256,7 +275,8 @@ app.post('/api/orders', orderLimiter, wrap(async (req, res) => {
         if (cals === null || qty === null || !Number.isInteger(qty) || !itemName) {
             return res.status(400).json({ status: 'error', message: 'Có món ăn không hợp lệ.' });
         }
-        items.push({ id: String((i && i.id) || ''), name: itemName, cals, qty });
+        const cat = ['main', 'salad', 'breakfast', 'drink', 'snack'].includes(i && i.cat) ? i.cat : '';
+        items.push({ id: String((i && i.id) || ''), name: itemName, cals, qty, cat });
     }
     const totalCalories = items.reduce((s, i) => s + i.cals * i.qty, 0);
 
@@ -277,7 +297,8 @@ app.post('/api/orders', orderLimiter, wrap(async (req, res) => {
         carbs_g: num(profile.carbGrams, 0, 2000),
         fat_g: num(profile.fatGrams, 0, 2000),
         total_calories: totalCalories,
-        items
+        items,
+        notes: cleanNotes(b.notes) // ghi chú gia vị / độ cay / dị ứng cho bếp
     };
 
     const { data, error } = await supabase
@@ -526,6 +547,67 @@ app.post('/api/tts', ttsLimiter, wrap(async (req, res) => {
     console.log(`[GEMINI] TTS ${result.model} (${voice}) xong sau ${((Date.now() - startedAt) / 1000).toFixed(1)}s`);
     res.set('Content-Type', 'audio/wav');
     res.send(out);
+}));
+
+// ---------- Gợi ý món từ lịch sử đơn hàng ----------
+// Chỉ trả về mã món + số đơn (không lộ tên, số điện thoại hay thông tin khách khác).
+const suggestLimiter = makeLimiter(30, 'Thao tác quá nhanh, vui lòng thử lại sau 1 phút.');
+
+// Đếm số đơn có chứa từng món (mỗi món chỉ tính 1 lần trong 1 đơn)
+function countDishes(orders) {
+    const counts = new Map();
+    for (const o of orders) {
+        const seen = new Set();
+        for (const i of Array.isArray(o.items) ? o.items : []) {
+            const id = String((i && i.id) || '');
+            if (!id || seen.has(id)) continue;
+            seen.add(id);
+            counts.set(id, (counts.get(id) || 0) + 1);
+        }
+    }
+    return [...counts].map(([id, orders]) => ({ id, orders })).sort((a, b) => b.orders - a.orders);
+}
+
+// Món phổ biến được lưu tạm 60 giây để không truy vấn database liên tục
+let popularCache = { at: 0, data: [] };
+async function getPopular() {
+    if (Date.now() - popularCache.at < 60000) return popularCache.data;
+    const { data, error } = await supabase
+        .from('orders')
+        .select('items')
+        .order('created_at', { ascending: false })
+        .limit(500);
+    if (error) throw error;
+    popularCache = { at: Date.now(), data: countDishes(data).slice(0, 8) };
+    return popularCache.data;
+}
+
+app.get('/api/suggestions', suggestLimiter, wrap(async (req, res) => {
+    const popular = await getPopular();
+    let mine = [];
+    let last = [];
+
+    const customer = await getCustomer(req); // khách đã đăng nhập mới có gợi ý cá nhân
+    if (customer) {
+        const { data, error } = await supabase
+            .from('orders')
+            .select('items')
+            .eq('customer_id', customer.id)
+            .order('created_at', { ascending: false })
+            .limit(50);
+        if (error) {
+            console.error('[SUPABASE] Lỗi khi đọc lịch sử gợi ý:', error.message);
+        } else {
+            mine = countDishes(data).slice(0, 8);
+            if (data[0] && Array.isArray(data[0].items)) {
+                last = data[0].items
+                    .map(i => ({ id: String((i && i.id) || ''), qty: num(i && i.qty, 1, 99) }))
+                    .filter(i => i.id && i.qty !== null)
+                    .slice(0, 20);
+            }
+        }
+    }
+    res.json({ status: 'success', popular, mine, last });
 }));
 
 // ---------- Admin ----------

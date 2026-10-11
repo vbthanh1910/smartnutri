@@ -76,6 +76,70 @@
             return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
         }
 
+        // Đọc ghi chú của khách (object hoặc chuỗi JSON), trả về null nếu không có gì đáng chú ý
+        function parseNotes(o) {
+            let n = o.notes;
+            if (typeof n === 'string') { try { n = JSON.parse(n); } catch (e) { n = { extra: n }; } }
+            if (!n || typeof n !== 'object') return null;
+            const spice = String(n.spice || '');
+            const allergies = Array.isArray(n.allergies) ? n.allergies.map(String) : [];
+            const seasoning = Array.isArray(n.seasoning) ? n.seasoning.map(String) : [];
+            const extra = String(n.extra || '').trim();
+            const hasSpice = spice && spice !== 'Không cay';
+            if (!allergies.length && !seasoning.length && !extra && !spice) return null;
+            return { spice, hasSpice, allergies, seasoning, extra };
+        }
+
+        // Gợi ý thứ tự ăn: rau/salad -> món chính -> ăn nhẹ -> đồ uống (đơn cũ chưa có "cat" thì bỏ qua)
+        const EAT_RANK = { salad: 1, main: 2, breakfast: 2, snack: 3, drink: 4 };
+        function renderEatOrder(items) {
+            const sorted = items
+                .filter(i => EAT_RANK[i.cat])
+                .map((i, idx) => ({ ...i, idx }))
+                .sort((a, b) => EAT_RANK[a.cat] - EAT_RANK[b.cat] || a.idx - b.idx);
+            if (sorted.length < 2) return '';
+            return `
+                <div class="mb-4 p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5">
+                    <span class="text-xs font-bold text-emerald-400 block uppercase mb-2">🥢 Gợi ý thứ tự ăn / lên món:</span>
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        ${sorted.map((d, i) => `
+                            ${i > 0 ? '<span class="text-slate-500 text-xs">➔</span>' : ''}
+                            <span class="px-2.5 py-1 rounded-md text-[11px] font-bold ${i === 0 ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-200 border border-slate-700'}">${i + 1}. ${esc(d.name)} x${esc(d.qty)}${i === 0 ? ' (ăn đầu tiên)' : ''}</span>`).join('')}
+                    </div>
+                </div>`;
+        }
+
+        function renderNotes(o) {
+            const n = parseNotes(o);
+            if (!n) return '';
+            const danger = n.allergies.length > 0;
+            const wrap = danger ? 'border-rose-500/50 bg-rose-500/10' : 'border-amber-500/30 bg-amber-500/5';
+            return `
+                <div class="mb-4 p-4 rounded-2xl border ${wrap} space-y-2.5">
+                    <span class="text-xs font-bold text-slate-300 block uppercase">📝 Ghi chú của khách cho bếp:</span>
+                    ${danger ? `
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="text-[11px] font-black text-rose-400 uppercase">⚠️ Dị ứng:</span>
+                            ${n.allergies.map(a => `<span class="px-2.5 py-1 rounded-md text-[11px] font-black bg-rose-600 text-white">${esc(a)}</span>`).join('')}
+                        </div>` : ''}
+                    ${n.spice ? `
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="text-[11px] font-black text-orange-400 uppercase">🌶️ Độ cay:</span>
+                            <span class="px-2.5 py-1 rounded-md text-[11px] font-black ${n.hasSpice ? 'bg-orange-500/20 text-orange-300 border border-orange-500/40' : 'bg-slate-800 text-slate-300 border border-slate-700'}">${esc(n.spice)}</span>
+                        </div>` : ''}
+                    ${n.seasoning.length ? `
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="text-[11px] font-black text-amber-400 uppercase">🧂 Gia vị:</span>
+                            ${n.seasoning.map(s => `<span class="px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-800 text-slate-200 border border-slate-700">${esc(s)}</span>`).join('')}
+                        </div>` : ''}
+                    ${n.extra ? `
+                        <div>
+                            <span class="text-[11px] font-black text-slate-400 uppercase block mb-1">💬 Ghi chú thêm:</span>
+                            <p class="text-xs font-semibold text-slate-100 bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-line">${esc(n.extra)}</p>
+                        </div>` : ''}
+                </div>`;
+        }
+
         let pwMemory = '';
         function getPassword() {
             try { return sessionStorage.getItem('smartnutri_admin_pw') || pwMemory; } catch (e) { return pwMemory; }
@@ -202,6 +266,8 @@
                 const items = Array.isArray(o.items) ? o.items : [];
                 const time = new Date(o.created_at).toLocaleString('vi-VN');
                 const doneTime = o.completed_at ? new Date(o.completed_at).toLocaleString('vi-VN') : '';
+                const notes = parseNotes(o);
+                const hasAllergy = !!(notes && notes.allergies.length);
                 const border = isNew
                     ? 'border-2 border-orange-500 new-order-card shadow-2xl shadow-orange-500/20'
                     : done ? 'border-emerald-500/30 opacity-75' : 'border-slate-800';
@@ -218,6 +284,9 @@
                                         ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30">👨‍🍳 Đang chuẩn bị</span>`
                                         : `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">⏳ Chờ xử lý</span>`}
                                 ${o.customer_id ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-slate-700/50 text-slate-300 border border-slate-600">🔑 Thành viên</span>` : ''}
+                                ${hasAllergy ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-rose-600 text-white">⚠️ Có dị ứng</span>` : ''}
+                                ${notes && notes.hasSpice ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-orange-500/20 text-orange-300 border border-orange-500/40">🌶️ ${esc(notes.spice)}</span>` : ''}
+                                ${notes && notes.extra ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-slate-700/50 text-slate-200 border border-slate-600">📝 Có ghi chú</span>` : ''}
                                 <h3 class="text-xl font-black text-white mt-2">
                                     👤 Khách hàng <span class="text-emerald-400 font-black">${esc(o.customer_name)}</span>${done ? '' : ' vừa chốt đơn!'}
                                 </h3>
@@ -240,6 +309,9 @@
                                     </div>`).join('')}
                             </div>
                         </div>
+
+                        ${renderEatOrder(items)}
+                        ${renderNotes(o)}
 
                         <div class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-xs font-bold">
                             <div class="flex justify-between sm:block gap-2">
