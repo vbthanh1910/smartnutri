@@ -6,18 +6,19 @@
   "display": "standalone",
   "orientation": "any",
   "dir": "ltr",
-  "background_color": "#27eb0a",
-  "theme_color": "#fff44e",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
-  {
-    "src": "images/android/launchericon-192x192.png",
-    "sizes": "192x192",
-    "type": "image/png"
-  },
-  {
-    "src": "images/android/launchericon-512x512.png",
-    "sizes": "512x512",
-    "type": "image/png"
-  }
-  ]
+    {
+      "src": "images/android/launchericon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "images/android/launchericon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "id": "com.onrender.smartnutri.twa"
 }
