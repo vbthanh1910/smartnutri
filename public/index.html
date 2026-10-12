@@ -2,7 +2,8 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#ea580c">
     <link rel="manifest" href="manifest.json" />
     <title>SmartNutri Eats - Nhập Chỉ Số & Đặt Món Chuẩn BMI</title>
 
@@ -28,39 +29,46 @@
     <script src="https://unpkg.com/lucide@latest"></script>
 
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .food-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
         .food-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(234, 88, 12, 0.15); }
         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        /* Mobile: cỡ chữ 16px trong ô nhập để iOS không tự phóng to khi bấm vào */
+        @media (max-width: 640px) {
+            input, select, textarea { font-size: 16px !important; }
+            button, a { touch-action: manipulation; }
+        }
     </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen flex flex-col justify-between pb-28">
+<body class="text-slate-800 antialiased min-h-screen flex flex-col justify-between pb-20 sm:pb-28">
 
-    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-3 left-3 right-3 sm:left-auto sm:right-5 sm:top-5 z-50 flex flex-col items-stretch sm:items-end gap-2 pointer-events-none"></div>
 
     <header class="bg-white sticky top-0 z-40 border-b border-slate-200 shadow-sm">
-        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-food-600 flex items-center justify-center text-white font-bold shadow-md shadow-food-500/20">
+        <div class="max-w-6xl mx-auto px-3 sm:px-4 py-2 sm:py-0 sm:h-16 flex flex-wrap items-center justify-between gap-y-2 gap-x-2">
+            <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-food-600 flex items-center justify-center text-white font-bold shadow-md shadow-food-500/20 shrink-0">
                     🍔
                 </div>
-                <div>
-                    <span class="text-xl font-black text-slate-900">SmartNutri <span class="text-food-600">Eats</span></span>
-                    <p class="text-[11px] text-slate-500 font-medium hidden sm:block">Tư Vấn Dinh Dưỡng BMI & Đặt Món Thông Minh</p>
+                <div class="min-w-0">
+                    <span class="text-lg sm:text-xl font-black text-slate-900 whitespace-nowrap">SmartNutri <span class="text-food-600">Eats</span></span>
+                    <p class="text-[11px] text-slate-500 font-medium hidden md:block">Tư Vấn Dinh Dưỡng BMI & Đặt Món Thông Minh</p>
                 </div>
             </div>
 
-            <div class="flex items-center gap-3">
-                <div class="flex items-center gap-1.5 text-xs font-bold bg-slate-100 p-1.5 rounded-2xl">
-                    <span id="badge-step-1" class="px-3 py-1 rounded-xl bg-food-600 text-white transition-all">1. Nhập Chỉ Số</span>
-                    <span class="text-slate-400">➔</span>
-                    <span id="badge-step-2" class="px-3 py-1 rounded-xl text-slate-400 transition-all">2. Chọn Món Ăn</span>
-                </div>
+            <!-- Thanh bước: trên điện thoại xuống hàng riêng, rộng hết cỡ -->
+            <div class="order-last sm:order-none w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-bold bg-slate-100 p-1 sm:p-1.5 rounded-2xl">
+                <span id="badge-step-1" class="flex-1 sm:flex-none text-center px-3 py-1.5 sm:py-1 rounded-xl bg-food-600 text-white transition-all">1. Nhập Chỉ Số</span>
+                <span class="text-slate-400">➔</span>
+                <span id="badge-step-2" class="flex-1 sm:flex-none text-center px-3 py-1.5 sm:py-1 rounded-xl text-slate-400 transition-all">2. Chọn Món Ăn</span>
+            </div>
 
+            <div class="flex items-center gap-2">
                 <div id="account-area" class="flex items-center gap-2"></div>
 
-                <a href="admin.html" target="_blank" class="px-3.5 py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                <a href="admin.html" target="_blank" aria-label="Trang quản lý" class="px-3 py-2.5 sm:px-3.5 sm:py-2 bg-slate-900 hover:bg-black text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
                     <i data-lucide="layout-dashboard" class="w-4 h-4 text-food-500"></i>
                     <span class="hidden md:inline">Trang Quản Lý</span>
                 </a>
@@ -68,30 +76,30 @@
         </div>
     </header>
 
-    <main class="max-w-6xl mx-auto px-4 py-8 flex-grow w-full">
+    <main class="max-w-6xl mx-auto px-3 sm:px-4 py-5 sm:py-8 flex-grow w-full">
 
         <!-- BƯỚC 1 -->
         <section id="step-1-container" class="max-w-3xl mx-auto transition-all duration-300">
-            <div class="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200">
-                <div class="text-center mb-6">
+            <div class="bg-white rounded-3xl p-5 sm:p-8 shadow-sm border border-slate-200">
+                <div class="text-center mb-5 sm:mb-6">
                     <span class="px-3 py-1 rounded-full text-xs font-extrabold bg-food-100 text-food-600 uppercase tracking-wider inline-block mb-2">🌱 Bước 1 / 2</span>
-                    <h1 class="text-2xl font-black text-slate-900">Nhập Thông Tin & Chỉ Số Cơ Thể</h1>
+                    <h1 class="text-xl sm:text-2xl font-black text-slate-900">Nhập Thông Tin & Chỉ Số Cơ Thể</h1>
                     <p class="text-xs text-slate-500 mt-1">Vui lòng hoàn tất chỉ số sinh học để hệ thống tính BMI & đưa ra thực đơn món ăn cá nhân hóa.</p>
                 </div>
 
-                <form onsubmit="handleFormSubmit(event)" class="space-y-5">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <form onsubmit="handleFormSubmit(event)" class="space-y-4 sm:space-y-5">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Họ và Tên <span class="text-rose-500">*</span></label>
-                            <input type="text" id="customer-name" value="Nguyễn Văn A" required maxlength="100" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none text-food-600">
+                            <input type="text" id="customer-name" value="Nguyễn Văn A" required maxlength="100" autocomplete="name" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none text-food-600">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Số Điện Thoại <span class="text-rose-500">*</span></label>
-                            <input type="text" id="customer-phone" value="0987654321" required pattern="[0-9+\s.\-]{8,20}" title="8-20 ký tự: số, +, khoảng trắng, dấu chấm hoặc gạch ngang" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                            <input type="tel" inputmode="tel" id="customer-phone" value="0987654321" required pattern="[0-9+\s.\-]{8,20}" title="8-20 ký tự: số, +, khoảng trắng, dấu chấm hoặc gạch ngang" autocomplete="tel" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Giới Tính</label>
                             <select id="gender" class="w-full px-3 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
@@ -101,19 +109,19 @@
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Tuổi (Năm)</label>
-                            <input type="number" id="age" min="10" max="100" value="25" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                            <input type="number" inputmode="numeric" id="age" min="10" max="100" value="25" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Chiều Cao (cm)</label>
-                            <input type="number" id="height" min="100" max="230" value="168" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                            <input type="number" inputmode="decimal" id="height" min="100" max="230" value="168" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Cân Nặng (kg)</label>
-                            <input type="number" id="weight" min="30" max="200" step="0.5" value="62" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
+                            <input type="number" inputmode="decimal" id="weight" min="30" max="200" step="0.5" value="62" required class="w-full px-4 py-3 rounded-xl border border-slate-200 font-bold text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <div>
                             <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Mức Độ Vận Động</label>
                             <select id="activity" class="w-full px-4 py-3 rounded-xl border border-slate-200 font-medium text-sm bg-slate-50 focus:ring-2 focus:ring-food-500 outline-none">
@@ -134,9 +142,9 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="w-full py-4 bg-food-600 hover:bg-food-700 text-white font-black rounded-2xl transition-all shadow-lg shadow-food-500/30 flex items-center justify-center gap-2 text-base">
-                        <i data-lucide="sparkles" class="w-5 h-5"></i>
-                        Phân Tích Chỉ Số & Xem Đề Nghị Món Ăn ➔
+                    <button type="submit" class="w-full py-4 bg-food-600 hover:bg-food-700 active:bg-food-700 text-white font-black rounded-2xl transition-all shadow-lg shadow-food-500/30 flex items-center justify-center gap-2 text-sm sm:text-base">
+                        <i data-lucide="sparkles" class="w-5 h-5 shrink-0"></i>
+                        <span>Phân Tích Chỉ Số & Xem Món Ăn ➔</span>
                     </button>
                 </form>
             </div>
@@ -144,37 +152,37 @@
 
         <!-- BƯỚC 2 -->
         <section id="step-2-container" class="hidden transition-all duration-300">
-            <div class="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-6 text-white mb-8 shadow-xl">
-                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-                    <div>
-                        <div class="flex items-center gap-3 mb-2">
+            <div class="bg-gradient-to-r from-slate-900 to-slate-800 rounded-3xl p-5 sm:p-6 text-white mb-5 sm:mb-8 shadow-xl">
+                <div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6">
+                    <div class="w-full">
+                        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2">
                             <span class="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase bg-food-500 text-white">Kết Quả Phân Tích BMI</span>
-                            <button onclick="goToStep(1)" class="text-xs text-slate-300 hover:text-white underline font-bold flex items-center gap-1">
+                            <button onclick="goToStep(1)" class="text-xs text-slate-300 hover:text-white underline font-bold flex items-center gap-1 py-1">
                                 <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> Sửa Chỉ Số
                             </button>
                         </div>
-                        <h2 class="text-2xl font-black flex items-center gap-2">
-                            Khách Hàng: <span id="res-name-tag" class="text-food-500">Nguyễn Văn A</span>
+                        <h2 class="text-lg sm:text-2xl font-black flex flex-wrap items-center gap-x-2 break-words">
+                            Khách Hàng: <span id="res-name-tag" class="text-food-500 break-all">Nguyễn Văn A</span>
                         </h2>
-                        <p class="text-xs text-slate-300 mt-1">
-                            BMI: <strong id="res-bmi" class="text-white">--</strong> (<span id="res-bmi-status" class="text-food-400 font-bold">--</span>) |
-                            Mục Tiêu: <strong id="res-target-cal" class="text-food-400">--</strong> kcal/ngày |
+                        <p class="text-xs text-slate-300 mt-1.5 leading-relaxed">
+                            BMI: <strong id="res-bmi" class="text-white">--</strong> (<span id="res-bmi-status" class="text-food-400 font-bold">--</span>)<br class="sm:hidden"><span class="hidden sm:inline"> | </span>
+                            Mục Tiêu: <strong id="res-target-cal" class="text-food-400">--</strong> kcal/ngày<br class="sm:hidden"><span class="hidden sm:inline"> | </span>
                             BMR: <span id="res-bmr" class="text-white">--</span> kcal
                         </p>
                     </div>
 
-                    <div class="grid grid-cols-3 gap-3 w-full lg:w-auto">
-                        <div class="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-center">
-                            <span class="text-[10px] text-slate-400 block font-bold uppercase">Đạm (Protein)</span>
-                            <span id="res-protein" class="text-lg font-black text-amber-400">--g</span>
+                    <div class="grid grid-cols-3 gap-2 sm:gap-3 w-full lg:w-auto">
+                        <div class="bg-white/10 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl border border-white/10 text-center">
+                            <span class="text-[10px] text-slate-400 block font-bold uppercase">Đạm</span>
+                            <span id="res-protein" class="text-base sm:text-lg font-black text-amber-400">--g</span>
                         </div>
-                        <div class="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-center">
+                        <div class="bg-white/10 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl border border-white/10 text-center">
                             <span class="text-[10px] text-slate-400 block font-bold uppercase">Carbs</span>
-                            <span id="res-carbs" class="text-lg font-black text-blue-400">--g</span>
+                            <span id="res-carbs" class="text-base sm:text-lg font-black text-blue-400">--g</span>
                         </div>
-                        <div class="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/10 text-center">
+                        <div class="bg-white/10 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl border border-white/10 text-center">
                             <span class="text-[10px] text-slate-400 block font-bold uppercase">Chất Béo</span>
-                            <span id="res-fat" class="text-lg font-black text-rose-400">--g</span>
+                            <span id="res-fat" class="text-base sm:text-lg font-black text-rose-400">--g</span>
                         </div>
                     </div>
                 </div>
@@ -187,13 +195,13 @@
                         <h4 class="text-sm font-extrabold text-slate-900">🤖 Trợ lý dinh dưỡng AI</h4>
                         <p class="text-[11px] text-slate-500 mt-0.5">Nhận lời khuyên dựa trên chỉ số cơ thể và khay ăn bạn đã chọn ở trang thực đơn. Chọn món xong quay lại đây và bấm lại để cập nhật.</p>
                     </div>
-                    <button id="btn-ai-advice" onclick="getAiAdvice()" class="px-4 py-2.5 bg-slate-900 hover:bg-black disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-xl transition whitespace-nowrap">🤖 Nhận lời khuyên từ AI</button>
+                    <button id="btn-ai-advice" onclick="getAiAdvice()" class="w-full sm:w-auto px-4 py-3 sm:py-2.5 bg-slate-900 hover:bg-black disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-xl transition whitespace-nowrap">🤖 Nhận lời khuyên từ AI</button>
                 </div>
                 <div id="ai-advice-result" class="hidden mt-3 p-3.5 rounded-xl bg-slate-50 border border-slate-200 text-xs leading-relaxed text-slate-700 whitespace-pre-line"></div>
                 <div id="ai-speak-box" class="hidden mt-2 flex flex-wrap items-center gap-2">
-                    <button id="btn-ai-speak" onclick="toggleSpeak()" class="px-3.5 py-2 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 font-extrabold text-xs rounded-xl transition whitespace-nowrap">🔊 Đọc lời khuyên</button>
-                    <select id="speak-voice" onchange="onVoiceChange()" title="Chọn giọng đọc" class="max-w-[16rem] px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-food-500"></select>
-                    <select id="speak-rate" onchange="onVoiceChange()" title="Tốc độ đọc" class="px-2.5 py-2 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-food-500">
+                    <button id="btn-ai-speak" onclick="toggleSpeak()" class="w-full sm:w-auto px-3.5 py-2.5 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 font-extrabold text-xs rounded-xl transition whitespace-nowrap">🔊 Đọc lời khuyên</button>
+                    <select id="speak-voice" onchange="onVoiceChange()" title="Chọn giọng đọc" class="flex-1 min-w-0 sm:flex-none sm:max-w-[16rem] px-2.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-food-500"></select>
+                    <select id="speak-rate" onchange="onVoiceChange()" title="Tốc độ đọc" class="px-2.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-food-500">
                         <option value="0.8">Chậm</option>
                         <option value="1" selected>Bình thường</option>
                         <option value="1.2">Nhanh</option>
@@ -202,39 +210,39 @@
                 <p class="text-[10px] text-slate-400 mt-2">Lời khuyên mang tính tham khảo, không thay thế tư vấn của bác sĩ và bộ y tế.</p>
             </div>
 
-            <div id="bmi-advice-box" class="p-4 rounded-2xl bg-orange-50 border border-orange-200 mb-8 text-xs font-semibold text-orange-900 flex items-start gap-3">
+            <div id="bmi-advice-box" class="p-4 rounded-2xl bg-orange-50 border border-orange-200 mb-5 sm:mb-8 text-xs font-semibold text-orange-900 flex items-start gap-3">
                 <i data-lucide="info" class="w-5 h-5 text-food-600 shrink-0 mt-0.5"></i>
                 <div id="bmi-advice-text">Dựa vào chỉ số BMI của bạn, hãy vào trang thực đơn để chọn món phù hợp với lượng Calo và Tỷ lệ Đạm/Fat.</div>
             </div>
 
-            <div class="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 text-center shadow-sm">
+            <div class="bg-white rounded-3xl border border-slate-200 p-5 sm:p-8 text-center shadow-sm">
                 <div class="text-5xl mb-3">🍽️</div>
-                <h3 class="text-lg font-extrabold text-slate-900">Chọn món ăn phù hợp với thể trạng của bạn</h3>
+                <h3 class="text-base sm:text-lg font-extrabold text-slate-900">Chọn món ăn phù hợp với thể trạng của bạn</h3>
                 <p class="text-xs text-slate-500 mt-1 mb-5 max-w-md mx-auto">Xem toàn bộ thực đơn, lọc theo món giàu đạm, ít calo hoặc món chay, rồi chốt đơn ngay. Chỉ số của bạn được giữ lại để gợi ý món hợp khẩu phần.</p>
-                <a href="menu.html" class="inline-flex items-center gap-2 px-6 py-3.5 bg-food-600 hover:bg-food-700 text-white font-black rounded-2xl transition shadow-lg shadow-food-500/30 text-sm">
+                <a href="menu.html" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-4 sm:py-3.5 bg-food-600 hover:bg-food-700 text-white font-black rounded-2xl transition shadow-lg shadow-food-500/30 text-sm">
                     <i data-lucide="utensils" class="w-4 h-4"></i> Xem Thực Đơn & Đặt Món ➔
                 </a>
             </div>
         </section>
     </main>
 
-    <!-- Modal đăng nhập / đăng ký khách hàng -->
-    <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl">
+    <!-- Modal đăng nhập / đăng ký khách hàng (trên điện thoại trượt lên từ đáy) -->
+    <div id="auth-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-end sm:items-center justify-center sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-sm w-full p-5 sm:p-6 shadow-2xl max-h-[92vh] overflow-y-auto" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom, 0px));">
             <div class="flex items-center justify-between mb-4">
                 <h3 class="font-extrabold text-slate-900 text-base">Tài khoản khách hàng</h3>
-                <button onclick="closeAuth()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500 text-lg leading-none">✕</button>
+                <button onclick="closeAuth()" aria-label="Đóng" class="w-9 h-9 rounded-lg hover:bg-slate-100 text-slate-500 text-lg leading-none">✕</button>
             </div>
             <div class="flex bg-slate-100 p-1 rounded-xl mb-4 text-xs font-bold">
-                <button id="auth-tab-login" onclick="setAuthMode('login')" class="flex-1 py-2 rounded-lg">Đăng nhập</button>
-                <button id="auth-tab-register" onclick="setAuthMode('register')" class="flex-1 py-2 rounded-lg">Đăng ký</button>
+                <button id="auth-tab-login" onclick="setAuthMode('login')" class="flex-1 py-2.5 rounded-lg">Đăng nhập</button>
+                <button id="auth-tab-register" onclick="setAuthMode('register')" class="flex-1 py-2.5 rounded-lg">Đăng ký</button>
             </div>
             <form onsubmit="submitAuth(event)" class="space-y-3">
-                <input id="auth-name" type="text" placeholder="Họ và tên" maxlength="100" class="hidden w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
-                <input id="auth-phone" type="tel" placeholder="Số điện thoại" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
-                <input id="auth-password" type="password" placeholder="Mật khẩu (tối thiểu 6 ký tự)" required minlength="6" maxlength="72" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                <input id="auth-name" type="text" placeholder="Họ và tên" maxlength="100" autocomplete="name" class="hidden w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                <input id="auth-phone" type="tel" inputmode="tel" placeholder="Số điện thoại" required autocomplete="tel" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                <input id="auth-password" type="password" placeholder="Mật khẩu (tối thiểu 6 ký tự)" required minlength="6" maxlength="72" autocomplete="current-password" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
                 <p id="auth-error" class="text-xs text-rose-600 font-bold min-h-[1rem]"></p>
-                <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-food-600 hover:bg-food-700 text-white font-black rounded-xl text-sm transition">Đăng nhập</button>
+                <button type="submit" id="auth-submit-btn" class="w-full py-3.5 bg-food-600 hover:bg-food-700 text-white font-black rounded-xl text-sm transition">Đăng nhập</button>
             </form>
             <p class="text-[11px] text-slate-400 mt-3 text-center">Đăng nhập để theo dõi tiến độ đơn hàng và tự điền lại chỉ số cơ thể.</p>
         </div>
@@ -261,11 +269,11 @@
             const box = document.getElementById('account-area');
             if (currentCustomer) {
                 box.innerHTML = `
-                    <a href="orders.html" class="px-3 py-2 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 rounded-xl text-xs font-bold transition whitespace-nowrap">📦 <span class="hidden sm:inline">Đơn của tôi</span></a>
-                    <button onclick="logoutCustomer()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition whitespace-nowrap" title="Đăng xuất">👤 <span id="acc-name" class="hidden md:inline"></span> ⏻</button>`;
+                    <a href="orders.html" class="px-3 py-2.5 sm:py-2 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 rounded-xl text-xs font-bold transition whitespace-nowrap">📦 <span class="hidden sm:inline">Đơn của tôi</span></a>
+                    <button onclick="logoutCustomer()" class="px-3 py-2.5 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition whitespace-nowrap" title="Đăng xuất">👤 <span id="acc-name" class="hidden md:inline"></span> ⏻</button>`;
                 document.getElementById('acc-name').textContent = currentCustomer.full_name;
             } else {
-                box.innerHTML = `<button onclick="openAuth('login')" class="px-3 py-2 bg-food-600 hover:bg-food-700 text-white rounded-xl text-xs font-bold transition whitespace-nowrap">👤 Đăng nhập</button>`;
+                box.innerHTML = `<button onclick="openAuth('login')" class="px-3 py-2.5 sm:py-2 bg-food-600 hover:bg-food-700 text-white rounded-xl text-xs font-bold transition whitespace-nowrap">👤 Đăng nhập</button>`;
             }
         }
 
@@ -288,11 +296,12 @@
             document.getElementById('auth-name').required = reg;
             document.getElementById('auth-submit-btn').textContent = reg ? 'Tạo tài khoản' : 'Đăng nhập';
             document.getElementById('auth-error').textContent = '';
-            document.getElementById('auth-tab-login').className = 'flex-1 py-2 rounded-lg ' + (!reg ? 'bg-white shadow text-food-600' : 'text-slate-500');
-            document.getElementById('auth-tab-register').className = 'flex-1 py-2 rounded-lg ' + (reg ? 'bg-white shadow text-food-600' : 'text-slate-500');
+            document.getElementById('auth-tab-login').className = 'flex-1 py-2.5 rounded-lg ' + (!reg ? 'bg-white shadow text-food-600' : 'text-slate-500');
+            document.getElementById('auth-tab-register').className = 'flex-1 py-2.5 rounded-lg ' + (reg ? 'bg-white shadow text-food-600' : 'text-slate-500');
         }
         function openAuth(m) { setAuthMode(m || 'login'); document.getElementById('auth-modal').classList.remove('hidden'); }
         function closeAuth() { document.getElementById('auth-modal').classList.add('hidden'); }
+        document.getElementById('auth-modal').addEventListener('click', e => { if (e.target.id === 'auth-modal') closeAuth(); });
 
         async function submitAuth(e) {
             e.preventDefault();
@@ -351,18 +360,20 @@
             const step2 = document.getElementById('step-2-container');
             const badge1 = document.getElementById('badge-step-1');
             const badge2 = document.getElementById('badge-step-2');
+            const on = "flex-1 sm:flex-none text-center px-3 py-1.5 sm:py-1 rounded-xl bg-food-600 text-white transition-all";
+            const off = "flex-1 sm:flex-none text-center px-3 py-1.5 sm:py-1 rounded-xl text-slate-400 transition-all";
 
             if (step === 1) {
                 stopSpeak();
                 step1.classList.remove('hidden');
                 step2.classList.add('hidden');
-                badge1.className = "px-3 py-1 rounded-xl bg-food-600 text-white transition-all";
-                badge2.className = "px-3 py-1 rounded-xl text-slate-400 transition-all";
+                badge1.className = on;
+                badge2.className = off;
             } else {
                 step1.classList.add('hidden');
                 step2.classList.remove('hidden');
-                badge2.className = "px-3 py-1 rounded-xl bg-food-600 text-white transition-all";
-                badge1.className = "px-3 py-1 rounded-xl text-slate-400 transition-all";
+                badge2.className = on;
+                badge1.className = off;
             }
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -648,7 +659,8 @@
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
             toast.className = `bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl font-semibold text-xs flex items-center gap-2 transition-all pointer-events-auto border border-slate-700`;
-            toast.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-food-500"></i> ${message}`;
+            toast.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-food-500 shrink-0"></i> <span></span>`;
+            toast.querySelector('span').textContent = message;
             container.appendChild(toast);
             lucide.createIcons();
             setTimeout(() => toast.remove(), 2500);

@@ -2,23 +2,31 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0f172a">
     <title>SmartNutri Admin - Trang Quản Lý Đơn Hàng</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #0f172a; -webkit-tap-highlight-color: transparent; }
+        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
         @keyframes alertPulse {
             0%, 100% { border-color: #f97316; }
             50% { border-color: #ef4444; }
         }
         .new-order-card { animation: alertPulse 1.5s infinite; }
+        @media (max-width: 640px) {
+            input, select, textarea { font-size: 16px !important; }
+            button, a { touch-action: manipulation; }
+        }
     </style>
 </head>
-<body class="text-slate-100 min-h-screen p-6">
+<body class="text-slate-100 min-h-screen p-3 sm:p-6" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));">
 
     <!-- Form đăng nhập (thay cho prompt(), vì một số trình xem trước không hỗ trợ prompt) -->
     <div id="login-box" class="hidden fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-4">
-        <form onsubmit="submitLogin(event)" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 w-full max-w-sm space-y-4">
+        <form onsubmit="submitLogin(event)" class="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-sm space-y-4">
             <div class="text-center">
                 <div class="w-12 h-12 mx-auto rounded-2xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-2xl mb-3">⚡</div>
                 <h2 class="text-lg font-black text-white">Đăng nhập quản trị</h2>
@@ -26,36 +34,36 @@
             <input id="login-pw" type="password" placeholder="Nhập mật khẩu quản trị" autocomplete="current-password"
                    class="w-full px-4 py-3 rounded-xl bg-slate-950 border border-slate-700 text-sm font-bold text-white outline-none focus:ring-2 focus:ring-emerald-500">
             <p id="login-err" class="text-xs text-rose-400 font-bold min-h-[1rem]"></p>
-            <button type="submit" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-sm transition">Vào trang quản lý</button>
+            <button type="submit" class="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl text-sm transition">Vào trang quản lý</button>
         </form>
     </div>
 
     <div class="max-w-5xl mx-auto">
-        <div class="flex items-center justify-between pb-6 border-b border-slate-800 mb-8">
-            <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-2xl">⚡</div>
-                <div>
-                    <h1 class="text-2xl font-black text-white">Trang Quản Lý Đơn Hàng</h1>
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 sm:pb-6 border-b border-slate-800 mb-5 sm:mb-8">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-xl sm:text-2xl shrink-0">⚡</div>
+                <div class="min-w-0">
+                    <h1 class="text-lg sm:text-2xl font-black text-white leading-tight">Trang Quản Lý Đơn Hàng</h1>
                     <p class="text-xs text-slate-400">Trạng thái: <span id="status" class="text-emerald-400 font-bold">🟢 Đang kết nối</span></p>
                 </div>
             </div>
             <div class="flex gap-2">
-                <button onclick="logout()" class="px-4 py-2 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 text-xs font-bold rounded-xl transition">Đăng xuất</button>
-                <button id="btn-clear" onclick="clearAllOrders()" class="px-4 py-2 bg-rose-600/20 text-rose-400 border border-rose-500/30 hover:bg-rose-600/30 text-xs font-bold rounded-xl transition">
+                <button onclick="logout()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 text-xs font-bold rounded-xl transition">Đăng xuất</button>
+                <button id="btn-clear" onclick="clearAllOrders()" class="flex-1 sm:flex-none px-4 py-3 sm:py-2 bg-rose-600/20 text-rose-400 border border-rose-500/30 hover:bg-rose-600/30 text-xs font-bold rounded-xl transition">
                     🗑️ Xóa Lịch Sử Đơn
                 </button>
             </div>
         </div>
 
-        <div class="flex items-center justify-between mb-4">
-            <h2 class="text-base font-extrabold text-slate-300">📥 Danh Sách Đơn Hàng:</h2>
-            <span id="order-count-badge" class="px-3 py-1 bg-slate-800 text-xs font-bold rounded-full text-slate-300">0 đơn</span>
+        <div class="flex items-center justify-between gap-2 mb-3 sm:mb-4">
+            <h2 class="text-sm sm:text-base font-extrabold text-slate-300">📥 Danh Sách Đơn Hàng:</h2>
+            <span id="order-count-badge" class="px-3 py-1 bg-slate-800 text-xs font-bold rounded-full text-slate-300 whitespace-nowrap">0 đơn</span>
         </div>
 
-        <!-- Bộ lọc theo trạng thái -->
-        <div id="filter-tabs" class="flex flex-wrap gap-2 mb-5"></div>
+        <!-- Bộ lọc theo trạng thái: cuộn ngang trên điện thoại -->
+        <div id="filter-tabs" class="flex gap-2 mb-4 sm:mb-5 overflow-x-auto sm:flex-wrap no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0"></div>
 
-        <div id="orders-container" class="space-y-4"></div>
+        <div id="orders-container" class="space-y-3 sm:space-y-4"></div>
     </div>
 
     <audio id="order-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
@@ -99,12 +107,12 @@
                 .sort((a, b) => EAT_RANK[a.cat] - EAT_RANK[b.cat] || a.idx - b.idx);
             if (sorted.length < 2) return '';
             return `
-                <div class="mb-4 p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5">
+                <div class="mb-4 p-3 sm:p-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/5">
                     <span class="text-xs font-bold text-emerald-400 block uppercase mb-2">🥢 Gợi ý thứ tự ăn / lên món:</span>
                     <div class="flex flex-wrap items-center gap-1.5">
                         ${sorted.map((d, i) => `
                             ${i > 0 ? '<span class="text-slate-500 text-xs">➔</span>' : ''}
-                            <span class="px-2.5 py-1 rounded-md text-[11px] font-bold ${i === 0 ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-200 border border-slate-700'}">${i + 1}. ${esc(d.name)} x${esc(d.qty)}${i === 0 ? ' (ăn đầu tiên)' : ''}</span>`).join('')}
+                            <span class="px-2.5 py-1.5 sm:py-1 rounded-md text-[11px] font-bold ${i === 0 ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-200 border border-slate-700'}">${i + 1}. ${esc(d.name)} x${esc(d.qty)}${i === 0 ? ' (ăn đầu tiên)' : ''}</span>`).join('')}
                     </div>
                 </div>`;
         }
@@ -115,7 +123,7 @@
             const danger = n.allergies.length > 0;
             const wrap = danger ? 'border-rose-500/50 bg-rose-500/10' : 'border-amber-500/30 bg-amber-500/5';
             return `
-                <div class="mb-4 p-4 rounded-2xl border ${wrap} space-y-2.5">
+                <div class="mb-4 p-3 sm:p-4 rounded-2xl border ${wrap} space-y-2.5">
                     <span class="text-xs font-bold text-slate-300 block uppercase">📝 Ghi chú của khách cho bếp:</span>
                     ${danger ? `
                         <div class="flex flex-wrap items-center gap-1.5">
@@ -135,7 +143,7 @@
                     ${n.extra ? `
                         <div>
                             <span class="text-[11px] font-black text-slate-400 uppercase block mb-1">💬 Ghi chú thêm:</span>
-                            <p class="text-xs font-semibold text-slate-100 bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-line">${esc(n.extra)}</p>
+                            <p class="text-xs font-semibold text-slate-100 bg-slate-950/60 border border-slate-800 rounded-xl p-3 whitespace-pre-line break-words">${esc(n.extra)}</p>
                         </div>` : ''}
                 </div>`;
         }
@@ -203,6 +211,7 @@
                     if (fresh.length) {
                         fresh.forEach(o => highlightIds.add(o.id));
                         document.getElementById('order-sound').play().catch(() => {});
+                        if (navigator.vibrate) { try { navigator.vibrate([200, 100, 200]); } catch (e) {} } // rung nhẹ trên điện thoại
                     }
                 }
                 knownIds = ids;
@@ -232,12 +241,12 @@
                 ['all', `Tất cả (${allOrders.length})`]
             ];
             document.getElementById('filter-tabs').innerHTML = tabs.map(([key, label]) => `
-                <button onclick="setFilter('${key}')" class="px-4 py-2 rounded-xl text-xs font-bold border transition ${
+                <button onclick="setFilter('${key}')" class="shrink-0 whitespace-nowrap px-4 py-3 sm:py-2 rounded-xl text-xs font-bold border transition ${
                     currentFilter === key
                         ? 'bg-emerald-500 text-slate-950 border-emerald-500'
                         : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
                 }">${label}</button>`).join('');
-            document.getElementById('order-count-badge').textContent = `${pending} đơn chờ / ${allOrders.length} tổng`;
+            document.getElementById('order-count-badge').textContent = `${pending} chờ / ${allOrders.length} tổng`;
         }
 
         function renderOrders() {
@@ -253,7 +262,7 @@
                         ? ['Không còn đơn nào đang chờ xử lý. 🎉', 'Chuyển sang tab "Đã hoàn thiện" để xem lại.']
                         : ['Không có đơn nào trong mục này.', ''];
                 container.innerHTML = `
-                    <div class="text-center py-16 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500">
+                    <div class="text-center py-14 border-2 border-dashed border-slate-800 rounded-3xl text-slate-500 px-4">
                         <p class="text-sm font-bold">${msg[0]}</p>
                         <p class="text-xs mt-1">${msg[1]}</p>
                     </div>`;
@@ -271,29 +280,35 @@
                 const border = isNew
                     ? 'border-2 border-orange-500 new-order-card shadow-2xl shadow-orange-500/20'
                     : done ? 'border-emerald-500/30 opacity-75' : 'border-slate-800';
+                const btn = 'flex-1 sm:flex-none px-4 py-3 sm:py-2 rounded-xl transition text-center';
                 return `
-                    <div class="bg-slate-900 border ${border} rounded-3xl p-6 transition">
+                    <div class="bg-slate-900 border ${border} rounded-3xl p-4 sm:p-6 transition">
                         <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between pb-4 border-b border-slate-800 gap-2">
-                            <div>
-                                <span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30">
-                                    Đơn Hàng #${esc(o.id)}
-                                </span>
-                                ${done
-                                    ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✅ Đã hoàn thiện</span>`
-                                    : o.status === 'preparing'
-                                        ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30">👨‍🍳 Đang chuẩn bị</span>`
-                                        : `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">⏳ Chờ xử lý</span>`}
-                                ${o.customer_id ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-slate-700/50 text-slate-300 border border-slate-600">🔑 Thành viên</span>` : ''}
-                                ${hasAllergy ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-rose-600 text-white">⚠️ Có dị ứng</span>` : ''}
-                                ${notes && notes.hasSpice ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-orange-500/20 text-orange-300 border border-orange-500/40">🌶️ ${esc(notes.spice)}</span>` : ''}
-                                ${notes && notes.extra ? `<span class="ml-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-slate-700/50 text-slate-200 border border-slate-600">📝 Có ghi chú</span>` : ''}
-                                <h3 class="text-xl font-black text-white mt-2">
+                            <div class="min-w-0 w-full">
+                                <div class="flex flex-wrap gap-1.5 items-center">
+                                    <span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                                        Đơn Hàng #${esc(o.id)}
+                                    </span>
+                                    ${done
+                                        ? `<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">✅ Đã hoàn thiện</span>`
+                                        : o.status === 'preparing'
+                                            ? `<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30">👨‍🍳 Đang chuẩn bị</span>`
+                                            : `<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30">⏳ Chờ xử lý</span>`}
+                                    ${o.customer_id ? `<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-slate-700/50 text-slate-300 border border-slate-600">🔑 Thành viên</span>` : ''}
+                                    ${hasAllergy ? `<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-rose-600 text-white">⚠️ Có dị ứng</span>` : ''}
+                                    ${notes && notes.hasSpice ? `<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-orange-500/20 text-orange-300 border border-orange-500/40">🌶️ ${esc(notes.spice)}</span>` : ''}
+                                    ${notes && notes.extra ? `<span class="px-2.5 py-1 rounded-md text-[10px] font-black uppercase bg-slate-700/50 text-slate-200 border border-slate-600">📝 Có ghi chú</span>` : ''}
+                                </div>
+                                <h3 class="text-base sm:text-xl font-black text-white mt-2 break-words">
                                     👤 Khách hàng <span class="text-emerald-400 font-black">${esc(o.customer_name)}</span>${done ? '' : ' vừa chốt đơn!'}
                                 </h3>
-                                <p class="text-xs text-slate-400 mt-0.5">SĐT: ${esc(o.customer_phone)} | Thể trạng: BMI ${esc(o.bmi ?? '--')} (${esc(o.bmi_status || '--')})</p>
+                                <p class="text-xs text-slate-400 mt-0.5">
+                                    SĐT: <a href="tel:${esc(String(o.customer_phone || '').replace(/[^0-9+]/g, ''))}" class="text-sky-400 underline">${esc(o.customer_phone)}</a>
+                                    <span class="hidden sm:inline"> | </span><br class="sm:hidden">Thể trạng: BMI ${esc(o.bmi ?? '--')} (${esc(o.bmi_status || '--')})
+                                </p>
                             </div>
-                            <div class="text-left sm:text-right">
-                                <span class="text-xs text-slate-400 font-medium block">⏰ Thời Gian Đặt:</span>
+                            <div class="text-left sm:text-right shrink-0">
+                                <span class="text-xs text-slate-400 font-medium">⏰ Thời Gian Đặt: </span>
                                 <span class="text-xs font-black text-amber-400">${esc(time)}</span>
                                 ${done && doneTime ? `<span class="text-[11px] text-emerald-400 font-bold block mt-1">Hoàn thiện: ${esc(doneTime)}</span>` : ''}
                             </div>
@@ -303,9 +318,9 @@
                             <span class="text-xs font-bold text-slate-400 block uppercase">Chi Tiết Món Ăn:</span>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 ${items.map(item => `
-                                    <div class="flex items-center justify-between p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
-                                        <span class="text-xs font-bold text-slate-200">${esc(item.name)}</span>
-                                        <span class="text-xs font-black text-orange-400">x${esc(item.qty)} (${Number(item.cals * item.qty).toLocaleString()} kcal)</span>
+                                    <div class="flex items-center justify-between gap-3 p-3 bg-slate-950/60 rounded-xl border border-slate-800/80">
+                                        <span class="text-xs font-bold text-slate-200 min-w-0 break-words">${esc(item.name)}</span>
+                                        <span class="text-xs font-black text-orange-400 whitespace-nowrap">x${esc(item.qty)} (${Number(item.cals * item.qty).toLocaleString()} kcal)</span>
                                     </div>`).join('')}
                             </div>
                         </div>
@@ -314,18 +329,18 @@
                         ${renderNotes(o)}
 
                         <div class="pt-3 border-t border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-3 text-xs font-bold">
-                            <div class="flex justify-between sm:block gap-2">
+                            <div>
                                 <span class="text-slate-400">Tổng Calo Khay Ăn: </span>
-                                <span class="text-orange-400 font-extrabold text-sm">${Number(o.total_calories).toLocaleString()} kcal / Mục tiêu: ${Number(o.target_calories_kcal || 0).toLocaleString()} kcal</span>
+                                <span class="text-orange-400 font-extrabold text-sm block sm:inline">${Number(o.total_calories).toLocaleString()} kcal / Mục tiêu: ${Number(o.target_calories_kcal || 0).toLocaleString()} kcal</span>
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 ${done
-                                    ? `<button onclick="setStatus(${Number(o.id)}, 'pending')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition">↩️ Hoàn tác</button>`
+                                    ? `<button onclick="setStatus(${Number(o.id)}, 'pending')" class="${btn} bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">↩️ Hoàn tác</button>`
                                     : o.status === 'preparing'
-                                        ? `<button onclick="setStatus(${Number(o.id)}, 'pending')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 rounded-xl transition">↩️ Về chờ xử lý</button>
-                                           <button onclick="setStatus(${Number(o.id)}, 'completed')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl transition">✅ Đánh dấu hoàn thiện</button>`
-                                        : `<button onclick="setStatus(${Number(o.id)}, 'preparing')" class="px-4 py-2 bg-blue-500 hover:bg-blue-400 text-white font-black rounded-xl transition">👨‍🍳 Bắt đầu chuẩn bị</button>
-                                           <button onclick="setStatus(${Number(o.id)}, 'completed')" class="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl transition">✅ Hoàn thiện luôn</button>`}
+                                        ? `<button onclick="setStatus(${Number(o.id)}, 'pending')" class="${btn} bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700">↩️ Về chờ xử lý</button>
+                                           <button onclick="setStatus(${Number(o.id)}, 'completed')" class="${btn} bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black">✅ Đánh dấu hoàn thiện</button>`
+                                        : `<button onclick="setStatus(${Number(o.id)}, 'preparing')" class="${btn} bg-blue-500 hover:bg-blue-400 text-white font-black">👨‍🍳 Bắt đầu chuẩn bị</button>
+                                           <button onclick="setStatus(${Number(o.id)}, 'completed')" class="${btn} bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black">✅ Hoàn thiện luôn</button>`}
                             </div>
                         </div>
                     </div>`;

@@ -2,7 +2,8 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#ea580c">
     <title>Thực Đơn Đầy Đủ - SmartNutri Eats</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,62 +20,73 @@
     </script>
 
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+        html { -webkit-text-size-adjust: 100%; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: #f8fafc; -webkit-tap-highlight-color: transparent; }
         .food-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
-        .food-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(234, 88, 12, 0.15); }
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        @media (hover: hover) {
+            .food-card:hover { transform: translateY(-4px); box-shadow: 0 12px 24px -8px rgba(234, 88, 12, 0.15); }
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .no-scrollbar { scrollbar-width: none; -ms-overflow-style: none; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        /* Bộ lọc cuộn ngang mượt trên điện thoại */
+        .hscroll { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+        @media (max-width: 640px) {
+            input, select, textarea { font-size: 16px !important; }
+            button, a { touch-action: manipulation; }
+        }
     </style>
 </head>
-<body class="text-slate-800 antialiased min-h-screen pb-28">
+<body class="text-slate-800 antialiased min-h-screen pb-32 sm:pb-28">
 
-    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-3 left-3 right-3 sm:left-auto sm:right-5 sm:top-5 z-[70] flex flex-col items-stretch sm:items-end gap-2 pointer-events-none"></div>
 
     <header class="bg-white sticky top-0 z-40 border-b border-slate-200 shadow-sm">
-        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-            <a href="index.html" class="flex items-center gap-3">
-                <div class="w-10 h-10 rounded-2xl bg-food-600 flex items-center justify-center text-white shadow-md shadow-food-500/20">🍔</div>
-                <span class="text-xl font-black text-slate-900">SmartNutri <span class="text-food-600">Eats</span></span>
+        <div class="max-w-6xl mx-auto px-3 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-2">
+            <a href="index.html" class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                <div class="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-food-600 flex items-center justify-center text-white shadow-md shadow-food-500/20 shrink-0">🍔</div>
+                <span class="text-lg sm:text-xl font-black text-slate-900 whitespace-nowrap">SmartNutri <span class="text-food-600">Eats</span></span>
             </a>
-            <div class="flex items-center gap-2">
-                <a id="link-orders" href="orders.html" class="hidden px-3 py-2 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 rounded-xl text-xs font-bold transition whitespace-nowrap">📦 Đơn của tôi</a>
-                <a href="index.html" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition whitespace-nowrap">← Tính BMI</a>
+            <div class="flex items-center gap-2 shrink-0">
+                <a id="link-orders" href="orders.html" class="hidden px-3 py-2.5 sm:py-2 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 rounded-xl text-xs font-bold transition whitespace-nowrap">📦 <span class="hidden sm:inline">Đơn của tôi</span></a>
+                <a href="index.html" class="px-3 py-2.5 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition whitespace-nowrap">← <span class="hidden xs:inline sm:inline">Tính </span>BMI</a>
             </div>
         </div>
     </header>
 
-    <main class="max-w-6xl mx-auto px-4 py-8 w-full">
+    <main class="max-w-6xl mx-auto px-3 sm:px-4 py-5 sm:py-8 w-full">
 
-        <div class="mb-6">
-            <h1 class="text-2xl font-black text-slate-900">Thực Đơn Đầy Đủ</h1>
+        <div class="mb-4 sm:mb-6">
+            <h1 class="text-xl sm:text-2xl font-black text-slate-900">Thực Đơn Đầy Đủ</h1>
             <p class="text-xs text-slate-500 mt-1">Chọn món theo sở thích rồi chốt đơn. Giá trị dinh dưỡng là ước tính cho mỗi phần.</p>
         </div>
 
         <!-- Gợi ý theo chỉ số -->
-        <div id="profile-banner" class="p-4 rounded-2xl bg-orange-50 border border-orange-200 mb-6 text-xs font-semibold text-orange-900"></div>
+        <div id="profile-banner" class="p-3.5 sm:p-4 rounded-2xl bg-orange-50 border border-orange-200 mb-5 sm:mb-6 text-xs font-semibold text-orange-900 leading-relaxed"></div>
 
         <!-- Món phù hợp với chỉ số cơ thể -->
-        <section id="fit-box" class="hidden mb-6 p-4 rounded-2xl bg-white border border-emerald-200">
+        <section id="fit-box" class="hidden mb-5 sm:mb-6 p-3.5 sm:p-4 rounded-2xl bg-white border border-emerald-200">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
                 <div>
                     <h3 class="text-sm font-extrabold text-slate-900">🎯 Món phù hợp với chỉ số của bạn</h3>
                     <p id="fit-sub" class="text-[11px] font-semibold text-slate-500 mt-0.5"></p>
                 </div>
-                <button onclick="buildFitMeal()" class="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition whitespace-nowrap">✨ Tạo khay gợi ý cho 1 bữa</button>
+                <button onclick="buildFitMeal()" class="w-full sm:w-auto px-4 py-3 sm:py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-xl transition whitespace-nowrap">✨ Tạo khay gợi ý cho 1 bữa</button>
             </div>
-            <div id="fit-list" class="flex gap-3 overflow-x-auto custom-scrollbar pb-2"></div>
+            <div id="fit-list" class="flex gap-3 overflow-x-auto no-scrollbar hscroll pb-2 -mx-1 px-1 snap-x"></div>
             <p class="text-[10px] text-slate-400 mt-1">Điểm phù hợp chỉ mang tính tham khảo, không thay thế tư vấn của bác sĩ hoặc chuyên gia dinh dưỡng.</p>
         </section>
 
         <!-- Gợi ý từ lịch sử đơn hàng -->
-        <section id="suggest-box" class="hidden mb-6 space-y-5">
+        <section id="suggest-box" class="hidden mb-5 sm:mb-6 space-y-5">
             <div id="sg-reorder" class="hidden"></div>
             <div id="sg-mine" class="hidden"></div>
             <div id="sg-popular" class="hidden"></div>
         </section>
 
         <!-- Tìm kiếm + sắp xếp -->
-        <div class="flex flex-col sm:flex-row gap-3 mb-4">
+        <div class="flex flex-col sm:flex-row gap-2.5 sm:gap-3 mb-3 sm:mb-4">
             <input id="search" type="search" placeholder="Tìm món ăn..." maxlength="60" class="flex-1 px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-semibold outline-none focus:ring-2 focus:ring-food-500">
             <select id="sort" class="px-4 py-3 rounded-xl border border-slate-200 bg-white text-sm font-bold outline-none focus:ring-2 focus:ring-food-500">
                 <option value="default">Sắp xếp: Mặc định</option>
@@ -85,40 +97,40 @@
             </select>
         </div>
 
-        <!-- Danh mục + bộ lọc nhanh -->
-        <div id="cat-chips" class="flex flex-wrap gap-2 mb-3"></div>
-        <div id="quick-filters" class="flex flex-wrap gap-2 mb-6"></div>
+        <!-- Danh mục + bộ lọc nhanh: cuộn ngang trên điện thoại, xuống hàng trên màn hình lớn -->
+        <div id="cat-chips" class="flex gap-2 mb-2.5 overflow-x-auto sm:overflow-visible sm:flex-wrap no-scrollbar hscroll -mx-3 px-3 sm:mx-0 sm:px-0"></div>
+        <div id="quick-filters" class="flex gap-2 mb-4 sm:mb-6 overflow-x-auto sm:overflow-visible sm:flex-wrap no-scrollbar hscroll -mx-3 px-3 sm:mx-0 sm:px-0"></div>
 
         <p id="result-count" class="text-xs font-bold text-slate-500 mb-3"></p>
-        <div id="menu-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"></div>
+        <div id="menu-grid" class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6"></div>
         <p id="empty-msg" class="hidden text-center text-sm font-semibold text-slate-400 py-16">Không tìm thấy món phù hợp. Thử bỏ bớt bộ lọc nhé.</p>
     </main>
 
-    <!-- Thanh giỏ hàng nổi -->
-    <div id="floating-cart" class="hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-40 w-[92%] max-w-2xl bg-slate-900/95 backdrop-blur-md text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between">
-        <div class="flex items-center gap-3 cursor-pointer" onclick="openCart()">
+    <!-- Thanh giỏ hàng nổi (tránh thanh home của iPhone) -->
+    <div id="floating-cart" class="hidden fixed left-1/2 -translate-x-1/2 z-40 w-[94%] sm:w-[92%] max-w-2xl bg-slate-900/95 backdrop-blur-md text-white p-3 sm:p-4 rounded-2xl shadow-2xl border border-slate-700 flex items-center justify-between gap-2" style="bottom: calc(env(safe-area-inset-bottom, 0px) + 0.75rem);">
+        <div class="flex items-center gap-3 cursor-pointer min-w-0" onclick="openCart()">
             <div class="relative w-10 h-10 rounded-xl bg-food-600 flex items-center justify-center font-black shrink-0">
                 🛒
                 <span id="cart-badge" class="absolute -top-1.5 -right-1.5 bg-white text-food-600 text-[10px] font-black w-5 h-5 rounded-full flex items-center justify-center shadow-md">0</span>
             </div>
-            <div>
-                <div class="flex items-baseline gap-2">
+            <div class="min-w-0">
+                <div class="flex items-baseline gap-1.5 sm:gap-2 whitespace-nowrap">
                     <span id="cart-cals" class="text-base sm:text-lg font-black text-food-500">0</span>
                     <span id="cart-target-wrap" class="text-xs text-slate-400 hidden">/ <span id="cart-target">0</span> kcal</span>
                     <span id="cart-kcal-unit" class="text-xs text-slate-400">kcal</span>
                 </div>
-                <p id="cart-sub" class="text-xs text-slate-300">Bấm để xem khay ăn</p>
+                <p id="cart-sub" class="text-xs text-slate-300 truncate">Bấm để xem khay ăn</p>
             </div>
         </div>
-        <button onclick="openCart()" class="px-4 py-2.5 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition">Xem Khay & Chốt Đơn</button>
+        <button onclick="openCart()" class="px-4 py-3 sm:py-2.5 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition whitespace-nowrap shrink-0">Chốt Đơn<span class="hidden sm:inline"> & Xem Khay</span></button>
     </div>
 
-    <!-- Modal khay ăn + thông tin đặt hàng -->
-    <div id="cart-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl flex flex-col max-h-[92vh] overflow-y-auto custom-scrollbar">
+    <!-- Modal khay ăn + thông tin đặt hàng (trên điện thoại là bảng trượt từ đáy) -->
+    <div id="cart-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-end sm:items-center justify-center sm:p-4">
+        <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full px-4 pt-4 sm:p-6 shadow-2xl flex flex-col max-h-[94vh] sm:max-h-[92vh] overflow-y-auto custom-scrollbar" style="-webkit-overflow-scrolling: touch;">
             <div class="flex items-center justify-between pb-3 border-b border-slate-100">
                 <h3 class="font-extrabold text-slate-900 text-base">🛒 Khay Ăn Của Bạn</h3>
-                <button onclick="closeCart()" class="p-1 rounded-lg hover:bg-slate-100 text-slate-500 text-lg leading-none">✕</button>
+                <button onclick="closeCart()" aria-label="Đóng" class="w-9 h-9 rounded-lg hover:bg-slate-100 text-slate-500 text-lg leading-none">✕</button>
             </div>
 
             <div id="modal-items" class="py-3 max-h-48 overflow-y-auto custom-scrollbar space-y-2 shrink-0"></div>
@@ -141,8 +153,8 @@
                 </div>
 
                 <div class="grid grid-cols-1 gap-2 pt-1">
-                    <input id="order-name" type="text" placeholder="Họ và tên" maxlength="100" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
-                    <input id="order-phone" type="tel" placeholder="Số điện thoại" maxlength="20" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                    <input id="order-name" type="text" placeholder="Họ và tên" maxlength="100" autocomplete="name" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
+                    <input id="order-phone" type="tel" inputmode="tel" placeholder="Số điện thoại" maxlength="20" autocomplete="tel" class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold bg-slate-50 outline-none focus:ring-2 focus:ring-food-500">
                 </div>
 
                 <!-- Ghi chú cho bếp / admin -->
@@ -151,17 +163,17 @@
 
                     <div>
                         <label class="block text-[11px] font-bold text-slate-600 mb-1">🌶️ Độ cay</label>
-                        <select id="note-spice" class="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold outline-none focus:ring-2 focus:ring-food-500"></select>
+                        <select id="note-spice" class="w-full px-3 py-3 sm:py-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold outline-none focus:ring-2 focus:ring-food-500"></select>
                     </div>
 
                     <div>
                         <span class="block text-[11px] font-bold text-slate-600 mb-1.5">⚠️ Dị ứng / không ăn được</span>
-                        <div id="note-allergies" class="flex flex-wrap gap-1.5"></div>
+                        <div id="note-allergies" class="flex flex-wrap gap-2"></div>
                     </div>
 
                     <div>
                         <span class="block text-[11px] font-bold text-slate-600 mb-1.5">🧂 Gia vị & cách chế biến</span>
-                        <div id="note-seasoning" class="flex flex-wrap gap-1.5"></div>
+                        <div id="note-seasoning" class="flex flex-wrap gap-2"></div>
                     </div>
 
                     <div>
@@ -172,9 +184,10 @@
 
                 <p id="order-error" class="text-xs text-rose-600 font-bold min-h-[1rem]"></p>
 
-                <div class="flex gap-2">
-                    <button onclick="clearCart()" class="w-1/3 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">Xóa Hết</button>
-                    <button id="btn-order" onclick="submitOrder()" class="w-2/3 py-3 bg-food-600 hover:bg-food-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-xs rounded-xl transition">Chốt Đơn</button>
+                <!-- Hàng nút dính đáy: luôn thấy nút Chốt Đơn dù form dài -->
+                <div class="sticky bottom-0 bg-white pt-2 flex gap-2" style="padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));">
+                    <button onclick="clearCart()" class="w-1/3 py-3.5 sm:py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl transition">Xóa Hết</button>
+                    <button id="btn-order" onclick="submitOrder()" class="w-2/3 py-3.5 sm:py-3 bg-food-600 hover:bg-food-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-extrabold text-sm sm:text-xs rounded-xl transition">Chốt Đơn</button>
                 </div>
             </div>
         </div>
@@ -182,15 +195,15 @@
 
     <!-- Thông báo cảm ơn sau khi chốt đơn (giữa màn hình) -->
     <div id="thanks-modal" class="hidden fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white rounded-3xl max-w-sm w-full p-8 shadow-2xl text-center">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 sm:p-8 shadow-2xl text-center">
             <div class="text-6xl mb-3">🎉</div>
             <h3 class="text-lg font-black text-slate-900">Chốt đơn thành công!</h3>
             <p id="thanks-order" class="text-sm font-extrabold text-food-600 mt-1"></p>
             <p id="thanks-msg" class="text-xs font-semibold text-slate-600 mt-3 leading-relaxed"></p>
-            <button id="thanks-speak" onclick="toggleThanksSpeak()" class="mt-3 text-[11px] font-bold text-slate-500 hover:text-slate-700 underline"></button>
-            <div class="flex gap-2 mt-5">
-                <a id="thanks-link" href="orders.html" class="hidden flex-1 py-3 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 font-extrabold text-xs rounded-xl transition">📦 Đơn của tôi</a>
-                <button onclick="closeThanks()" class="flex-1 py-3 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition">Đóng</button>
+            <button id="thanks-speak" onclick="toggleThanksSpeak()" class="mt-3 py-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 underline"></button>
+            <div class="flex gap-2 mt-4">
+                <a id="thanks-link" href="orders.html" class="hidden flex-1 py-3.5 bg-food-50 hover:bg-food-100 text-food-700 border border-food-200 font-extrabold text-xs rounded-xl transition">📦 Đơn của tôi</a>
+                <button onclick="closeThanks()" class="flex-1 py-3.5 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition">Đóng</button>
             </div>
         </div>
     </div>
@@ -295,7 +308,7 @@
             document.getElementById(boxId).innerHTML = options.map(o => `
                 <label class="cursor-pointer">
                     <input type="checkbox" name="${name}" value="${o}" class="peer sr-only">
-                    <span class="inline-block px-2.5 py-1 rounded-full text-[11px] font-bold border border-slate-200 bg-white text-slate-600 transition peer-checked:${checkedColor} peer-checked:text-white peer-checked:border-transparent peer-focus-visible:ring-2 peer-focus-visible:ring-food-500">${o}</span>
+                    <span class="inline-block px-3 py-2 sm:px-2.5 sm:py-1 rounded-full text-xs sm:text-[11px] font-bold border border-slate-200 bg-white text-slate-600 transition peer-checked:${checkedColor} peer-checked:text-white peer-checked:border-transparent peer-focus-visible:ring-2 peer-focus-visible:ring-food-500">${o}</span>
                 </label>`).join('');
         }
 
@@ -338,10 +351,10 @@
         function renderFilters() {
             const chips = [{ id: 'all', label: 'Tất cả' }, ...CATEGORIES];
             document.getElementById('cat-chips').innerHTML = chips.map(c => `
-                <button onclick="setCat('${c.id}')" class="px-3.5 py-2 rounded-full text-xs font-extrabold border transition ${state.cat === c.id ? 'bg-food-600 text-white border-food-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'}">${c.label}</button>
+                <button onclick="setCat('${c.id}')" class="shrink-0 whitespace-nowrap px-3.5 py-2.5 sm:py-2 rounded-full text-xs font-extrabold border transition ${state.cat === c.id ? 'bg-food-600 text-white border-food-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'}">${c.label}</button>
             `).join('');
             document.getElementById('quick-filters').innerHTML = QUICK.map(q => `
-                <button onclick="toggleQuick('${q.id}')" class="px-3 py-1.5 rounded-full text-[11px] font-bold border transition ${state.quick.has(q.id) ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">${q.label}</button>
+                <button onclick="toggleQuick('${q.id}')" class="shrink-0 whitespace-nowrap px-3 py-2 sm:py-1.5 rounded-full text-[11px] font-bold border transition ${state.quick.has(q.id) ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">${q.label}</button>
             `).join('');
         }
         function setCat(id) { state.cat = id; renderFilters(); renderMenu(); }
@@ -377,23 +390,23 @@
                     fitBadge(d)
                 ].join('');
                 return `
-                <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden food-card flex flex-col justify-between p-4">
+                <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200 overflow-hidden food-card flex flex-col justify-between p-2.5 sm:p-4">
                     <div>
-                        <div class="relative h-36 w-full overflow-hidden rounded-2xl bg-gradient-to-br from-food-50 to-food-100 flex items-center justify-center mb-3">
-                            ${media(d, 'w-full h-full object-cover', 'text-6xl')}
-                            <span class="absolute bottom-2 right-2 bg-food-600 text-white text-xs font-black px-2.5 py-1 rounded-xl shadow-md">${d.cals} kcal</span>
+                        <div class="relative h-28 sm:h-36 w-full overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-food-50 to-food-100 flex items-center justify-center mb-2.5 sm:mb-3">
+                            ${media(d, 'w-full h-full object-cover', 'text-5xl sm:text-6xl')}
+                            <span class="absolute bottom-1.5 right-1.5 sm:bottom-2 sm:right-2 bg-food-600 text-white text-[10px] sm:text-xs font-black px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg sm:rounded-xl shadow-md">${d.cals} kcal</span>
                         </div>
-                        <h4 class="font-extrabold text-slate-900 text-sm mb-1">${d.name}</h4>
-                        <p class="text-[11px] font-bold text-slate-500 mb-2">P: ${d.p}g | C: ${d.c}g | F: ${d.f}g</p>
-                        <div class="flex flex-wrap gap-1 mb-3 text-[10px] font-extrabold [&>span]:px-2 [&>span]:py-0.5 [&>span]:rounded-full">${badges}</div>
+                        <h4 class="font-extrabold text-slate-900 text-[13px] sm:text-sm leading-snug mb-1">${d.name}</h4>
+                        <p class="text-[10px] sm:text-[11px] font-bold text-slate-500 mb-2">P ${d.p}g · C ${d.c}g · F ${d.f}g</p>
+                        <div class="flex flex-wrap gap-1 mb-2.5 sm:mb-3 text-[9px] sm:text-[10px] font-extrabold [&>span]:px-1.5 sm:[&>span]:px-2 [&>span]:py-0.5 [&>span]:rounded-full">${badges}</div>
                     </div>
                     ${qty === 0 ? `
-                        <button onclick="changeQty('${d.id}', 1)" class="w-full py-2.5 bg-food-50 hover:bg-food-100 text-food-700 font-extrabold text-xs rounded-xl transition border border-food-200">+ Thêm Vào Khay</button>
+                        <button onclick="changeQty('${d.id}', 1)" class="w-full py-3 sm:py-2.5 bg-food-50 hover:bg-food-100 active:bg-food-100 text-food-700 font-extrabold text-xs rounded-xl transition border border-food-200">+ Thêm</button>
                     ` : `
-                        <div class="flex items-center justify-between bg-food-600 text-white rounded-xl px-2 py-1.5">
-                            <button onclick="changeQty('${d.id}', -1)" class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 font-black">−</button>
+                        <div class="flex items-center justify-between bg-food-600 text-white rounded-xl px-1.5 py-1.5">
+                            <button onclick="changeQty('${d.id}', -1)" class="w-10 h-9 sm:w-8 sm:h-8 rounded-lg bg-white/20 hover:bg-white/30 font-black">−</button>
                             <span class="text-sm font-black">${qty}</span>
-                            <button onclick="changeQty('${d.id}', 1)" class="w-8 h-8 rounded-lg bg-white/20 hover:bg-white/30 font-black">+</button>
+                            <button onclick="changeQty('${d.id}', 1)" class="w-10 h-9 sm:w-8 sm:h-8 rounded-lg bg-white/20 hover:bg-white/30 font-black">+</button>
                         </div>
                     `}
                 </div>`;
@@ -477,7 +490,7 @@
                 : ids.map(id => {
                     const d = BY_ID[id], q = cart[id];
                     return `
-                    <div class="flex items-center justify-between p-2.5 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div class="flex items-center justify-between gap-2 p-2.5 bg-slate-50 rounded-2xl border border-slate-100">
                         <div class="flex items-center gap-2.5 min-w-0">
                             <div class="w-11 h-11 rounded-xl overflow-hidden bg-food-50 flex items-center justify-center shrink-0">${media(d, 'w-full h-full object-cover', 'text-2xl')}</div>
                             <div class="min-w-0">
@@ -485,10 +498,10 @@
                                 <span class="text-[11px] text-food-600 font-bold">${(d.cals * q).toLocaleString()} kcal</span>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2 shrink-0">
-                            <button onclick="changeQty('${id}', -1)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-xs hover:bg-slate-100">-</button>
-                            <span class="text-xs font-extrabold w-4 text-center">${q}</span>
-                            <button onclick="changeQty('${id}', 1)" class="w-7 h-7 rounded-lg bg-white border border-slate-200 font-bold text-xs hover:bg-slate-100">+</button>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <button onclick="changeQty('${id}', -1)" class="w-9 h-9 sm:w-7 sm:h-7 rounded-lg bg-white border border-slate-200 font-bold text-sm sm:text-xs hover:bg-slate-100">-</button>
+                            <span class="text-xs font-extrabold w-5 text-center">${q}</span>
+                            <button onclick="changeQty('${id}', 1)" class="w-9 h-9 sm:w-7 sm:h-7 rounded-lg bg-white border border-slate-200 font-bold text-sm sm:text-xs hover:bg-slate-100">+</button>
                         </div>
                     </div>`;
                 }).join('');
@@ -501,7 +514,6 @@
             if (cartTotals().qty === 0) return;
             document.getElementById('order-error').textContent = '';
             document.getElementById('cart-modal').classList.remove('hidden');
-            prefetchThanks();
         }
         function closeCart() { document.getElementById('cart-modal').classList.add('hidden'); }
 
@@ -619,7 +631,7 @@
             const meal = perMeal();
             const fits = meal && d.cals <= meal;
             return `
-                <div class="w-40 shrink-0 bg-white rounded-2xl border border-slate-200 p-2.5 flex flex-col justify-between">
+                <div class="w-36 sm:w-40 shrink-0 snap-start bg-white rounded-2xl border border-slate-200 p-2.5 flex flex-col justify-between">
                     <div>
                         <div class="h-20 w-full rounded-xl overflow-hidden bg-gradient-to-br from-food-50 to-food-100 flex items-center justify-center mb-2">${media(d, 'w-full h-full object-cover', 'text-4xl')}</div>
                         <h5 class="text-[11px] font-extrabold text-slate-900 leading-snug mb-0.5">${d.name}</h5>
@@ -627,7 +639,7 @@
                         <p class="text-[10px] font-bold text-food-600">${sub}</p>
                         ${fits ? '<span class="inline-block mt-1 px-1.5 py-0.5 rounded-full bg-food-100 text-food-700 text-[9px] font-extrabold">Hợp 1 bữa</span>' : ''}
                     </div>
-                    <button onclick="changeQty('${d.id}', 1)" class="mt-2 w-full py-1.5 bg-food-50 hover:bg-food-100 text-food-700 font-extrabold text-[11px] rounded-lg transition border border-food-200">+ Thêm</button>
+                    <button onclick="changeQty('${d.id}', 1)" class="mt-2 w-full py-2.5 sm:py-1.5 bg-food-50 hover:bg-food-100 text-food-700 font-extrabold text-[11px] rounded-lg transition border border-food-200">+ Thêm</button>
                 </div>`;
         }
 
@@ -637,7 +649,7 @@
             if (!cards.length) return;
             box.innerHTML = `
                 <h3 class="text-sm font-extrabold text-slate-900 mb-2">${title}</h3>
-                <div class="flex gap-3 overflow-x-auto custom-scrollbar pb-2">${cards.join('')}</div>`;
+                <div class="flex gap-3 overflow-x-auto no-scrollbar hscroll snap-x pb-2 -mx-3 px-3 sm:mx-0 sm:px-0">${cards.join('')}</div>`;
         }
 
         function renderSuggestions() {
@@ -659,7 +671,7 @@
                             <p class="text-xs font-extrabold">🔁 Đặt lại đơn gần nhất của bạn</p>
                             <p class="text-[11px] text-slate-300 mt-0.5">${last.map(i => `${BY_ID[i.id].name} x${Number(i.qty)}`).join(', ')}</p>
                         </div>
-                        <button onclick="reorderLast()" class="px-4 py-2.5 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition whitespace-nowrap">Thêm cả đơn vào khay</button>
+                        <button onclick="reorderLast()" class="w-full sm:w-auto px-4 py-3 sm:py-2.5 bg-food-600 hover:bg-food-700 text-white font-extrabold text-xs rounded-xl transition whitespace-nowrap">Thêm cả đơn vào khay</button>
                     </div>`;
             }
             document.getElementById('suggest-box').classList.toggle('hidden', !(mine.length || popular.length || last.length));
@@ -686,15 +698,40 @@
         }
 
         // ---------- Thông báo cảm ơn ----------
-        function showThanks(id, name, linked) {
+        // Câu đọc có số đơn nên âm thanh được tạo sau khi đơn lưu xong.
+        // Chờ âm thanh sẵn sàng (tối đa THANKS_WAIT_MS) rồi mới hiện popup và phát cùng lúc.
+        const THANKS_WAIT_MS = 8000;
+        async function showThanks(id, name, linked) {
+            stopThanksSpeak();
+            const text = thanksTextFor(id);
+            thanksText = text;
+
+            let url = null;
+            if (thanksSpeakOn()) {
+                url = await Promise.race([
+                    loadThanksAudio(text, thanksVoice()).catch(() => null),
+                    new Promise(r => setTimeout(() => r(null), THANKS_WAIT_MS))
+                ]);
+            }
+
             document.getElementById('thanks-order').textContent = 'Đơn #' + id;
             document.getElementById('thanks-msg').textContent = 'Cảm ơn bạn ' + name + ' đã đặt món! ' +
                 (linked ? 'Bạn có thể theo dõi tiến độ tại mục "Đơn của tôi".' : 'Đăng nhập ở trang chính để theo dõi tiến độ các đơn sau.');
             document.getElementById('thanks-link').classList.toggle('hidden', !linked);
             document.getElementById('thanks-modal').classList.remove('hidden');
-            thanksText = THANKS_TEXT; // câu cố định, không chứa tên hay mã đơn
             updateThanksSpeakBtn();
-            if (thanksSpeakOn()) speakThanks(thanksText);
+
+            // Popup vừa hiện thì âm thanh phát ngay; nếu giọng AI chưa kịp thì dùng giọng trình duyệt
+            if (thanksSpeakOn()) {
+                const seq = thanksSeq;
+                if (url) {
+                    thanksAudio = new Audio(url);
+                    thanksAudio.onended = () => { thanksAudio = null; };
+                    thanksAudio.play().catch(() => { if (seq === thanksSeq) speakThanksBrowser(text); });
+                } else {
+                    speakThanksBrowser(text);
+                }
+            }
         }
         function closeThanks() {
             document.getElementById('thanks-modal').classList.add('hidden');
@@ -708,6 +745,7 @@
         function thanksSpeakOn() { return lsGet(K_SPEAK_THANKS) !== 'off'; } // mặc định bật
         // Câu đọc cố định: nên âm thanh chỉ cần tạo một lần, tải sẵn từ trước khi khách bấm "Chốt đơn"
         const THANKS_TEXT = 'Đặt hàng thành công. Cảm ơn bạn đã đặt món!';
+        const thanksTextFor = id => `Đặt hàng thành công. Đơn số ${id}. Cảm ơn bạn đã đặt món!`;
         let thanksAudio = null, thanksSeq = 0;
         const thanksCache = new Map(); // "giọng|nội dung" -> Promise<URL âm thanh>
 
@@ -744,11 +782,6 @@
                 thanksCache.set(key, p);
             }
             return thanksCache.get(key);
-        }
-
-        // Gọi khi khách mở khay ăn để âm thanh sẵn sàng trước lúc chốt đơn
-        function prefetchThanks() {
-            if (thanksSpeakOn()) loadThanksAudio(THANKS_TEXT, thanksVoice()).catch(() => {});
         }
 
         // Dự phòng: giọng của trình duyệt khi Gemini lỗi hoặc quá chậm
@@ -815,9 +848,11 @@
                 });
                 const data = await res.json().catch(() => ({}));
                 if (!res.ok) throw new Error(data.message || 'Không gửi được đơn, vui lòng thử lại.');
-                cart = {}; persistCart(); renderMenu(); renderCart(); closeCart();
+                cart = {}; persistCart(); renderMenu();
                 document.getElementById('note-extra').value = '';
-                showThanks(data.id, name, data.linked);
+                btn.textContent = 'Đã lưu đơn, đang xác nhận...';
+                await showThanks(data.id, name, data.linked); // chờ âm thanh rồi hiện popup cùng lúc
+                renderCart(); closeCart();
             } catch (err) {
                 errEl.textContent = err.message;
             } finally {
