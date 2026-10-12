@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.onrender.smartnutri.twa",
+        "sha256_cert_fingerprints": ["D1:D3:94:DC:0F:01:A0:6A:1F:3A:9E:D6:59:35:74:D7:C0:46:C3:DB:40:EA:CF:2A:EC:32:DA:2F:00:18:C4:C1"]
+      }
+    }]
