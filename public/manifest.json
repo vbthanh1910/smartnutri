@@ -1,24 +1,16 @@
 {
-  "name": "smartnutri.onrender",
-  "short_name": "smartnutri.onrender",
-  "start_url": "/",
+  "name": "SmartNutri Eats",
+  "short_name": "SmartNutri",
+  "description": "Tư vấn dinh dưỡng BMI và đặt món thông minh",
+  "lang": "vi",
+  "start_url": "/index.html",
   "scope": "/",
   "display": "standalone",
-  "orientation": "any",
-  "dir": "ltr",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "orientation": "portrait",
+  "background_color": "#fff7ed",
+  "theme_color": "#ea580c",
   "icons": [
-    {
-      "src": "images/android/launchericon-192x192.png",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "images/android/launchericon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ],
-  "id": "com.onrender.smartnutri.twa"
+    { "src": "images/android/launchericon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "images/android/launchericon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
 }

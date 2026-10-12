@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#ea580c">
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
     <title>Thực Đơn Đầy Đủ - SmartNutri Eats</title>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -884,5 +886,10 @@
         renderCart();
         initAccount().finally(loadSuggestions); // chờ biết đã đăng nhập hay chưa rồi mới lấy gợi ý
     </script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+    }
+</script>
 </body>
 </html>

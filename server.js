@@ -28,6 +28,11 @@ const supabase = createClient(SUPABASE_URL.trim(), SUPABASE_SECRET_KEY.trim());
 app.set('trust proxy', 1); // cần khi chạy sau proxy của Render
 app.use(express.json({ limit: '100kb' }));
 app.use('/api', (req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
+// sw.js không được cache để khách luôn nhận bản service worker mới
+app.get('/sw.js', (req, res) => {
+    res.set('Cache-Control', 'no-cache');
+    res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ---------- Tiện ích ----------
